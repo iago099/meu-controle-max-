@@ -211,15 +211,26 @@
     };
 
     const RECURRENCE_OPTIONS = [
-      { id: 'none',    label: 'Não se repete' },
-      { id: 'daily',   label: 'Diariamente' },
-      { id: 'weekly',  label: 'Semanalmente' },
-      { id: 'monthly', label: 'Mensalmente' },
-      { id: 'custom',  label: 'Personalizada' },
+      { id: 'none',     label: 'Não se repete',                      defaultCount: 1 },
+      { id: 'daily',    label: '🔁 Diariamente (Todos os dias)',     defaultCount: 7 },
+      { id: 'weekdays', label: '💼 Segunda a Sexta (Dias Úteis)',    defaultCount: 5 },
+      { id: 'weekly',   label: '📅 Semanalmente (1x por semana)',    defaultCount: 4 },
+      { id: 'monthly',  label: '🗓️ Mensalmente (1x por mês)',        defaultCount: 3 },
+      { id: 'custom',   label: '⚙️ Personalizada (Escolher dias)',   defaultCount: 7 },
+    ];
+
+    const WEEKDAY_SHORT = [
+      { day: 0, short: 'Dom', full: 'Domingo' },
+      { day: 1, short: 'Seg', full: 'Segunda' },
+      { day: 2, short: 'Ter', full: 'Terça' },
+      { day: 3, short: 'Qua', full: 'Quarta' },
+      { day: 4, short: 'Qui', full: 'Quinta' },
+      { day: 5, short: 'Sex', full: 'Sexta' },
+      { day: 6, short: 'Sáb', full: 'Sábado' },
     ];
 
     // =========================================================================
-    // 2. UTILITÁRIOS DE DATA E HORÁRIO
+    // 2. UTILITÁRIOS DE DATA, HORÁRIO, RECORRÊNCIA E RELATÓRIOS
     // =========================================================================
     function getTodayISO() {
       const now = new Date();
@@ -248,6 +259,200 @@
       const nh = String(Math.floor(total / 60)).padStart(2, '0');
       const nm = String(total % 60).padStart(2, '0');
       return `${nh}:${nm}`;
+    }
+
+    // Gera todas as datas (ISO) de uma tarefa que se repete
+    function generateRecurringTaskDates(startDateISO, recurrence, recurrenceCount = 7, customWeekdays = []) {
+      const baseISO = startDateISO || getTodayISO();
+      const count = Math.max(1, Math.min(60, Number(recurrenceCount) || 1));
+      if (!recurrence || recurrence === 'none' || count <= 1) {
+        return [baseISO];
+      }
+
+      const dates = [];
+      const [y, m, d] = baseISO.split('-').map(Number);
+
+      if (recurrence === 'daily') {
+        for (let i = 0; i < count; i++) {
+          dates.push(addDaysISO(baseISO, i));
+        }
+      } else if (recurrence === 'weekdays') {
+        let offset = 0;
+        while (dates.length < count && offset < 180) {
+          const candidate = addDaysISO(baseISO, offset);
+          const [cy, cm, cd] = candidate.split('-').map(Number);
+          const dow = new Date(cy, cm - 1, cd).getDay();
+          if (dow >= 1 && dow <= 5) {
+            dates.push(candidate);
+          }
+          offset++;
+        }
+      } else if (recurrence === 'weekly') {
+        for (let i = 0; i < count; i++) {
+          dates.push(addDaysISO(baseISO, i * 7));
+        }
+      } else if (recurrence === 'monthly') {
+        for (let i = 0; i < count; i++) {
+          const dt = new Date(y, m - 1 + i, d);
+          const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+          dates.push(iso);
+        }
+      } else if (recurrence === 'custom') {
+        const allowedDays = Array.isArray(customWeekdays) && customWeekdays.length > 0
+          ? customWeekdays.map(Number)
+          : [1, 2, 3, 4, 5];
+        let offset = 0;
+        while (dates.length < count && offset < 180) {
+          const candidate = addDaysISO(baseISO, offset);
+          const [cy, cm, cd] = candidate.split('-').map(Number);
+          const dow = new Date(cy, cm - 1, cd).getDay();
+          if (allowedDays.includes(dow)) {
+            dates.push(candidate);
+          }
+          offset++;
+        }
+      }
+
+      return dates.length > 0 ? dates : [baseISO];
+    }
+
+    // Monta o texto do Resumo / Relatório Diário para WhatsApp e Compartilhamento
+    function buildDailySummaryReportText(tasks, dateISO = getTodayISO()) {
+      const dayTasks = (tasks || [])
+        .filter(t => t.date === dateISO)
+        .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+      const completed = dayTasks.filter(t => t.status === 'completed');
+      const confirmed = dayTasks.filter(t => t.status === 'confirmed');
+      const pending = dayTasks.filter(t => !['completed', 'confirmed', 'cancelled'].includes(t.status));
+
+      let text =
+        `📋 *MEU CONTROLE MAX – RESUMO E RELATÓRIO DO DIA*\n` +
+        `📅 *Data:* ${formatDateBR(dateISO)}\n` +
+        `📊 *Total:* ${dayTasks.length} atividade(s) | 🏆 *Concluídas:* ${completed.length} | ✅ *Confirmadas:* ${confirmed.length} | ⏳ *Pendentes:* ${pending.length}\n` +
+        `━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+      if (dayTasks.length === 0) {
+        text += `✨ _Nenhuma atividade agendada para esta data._\n`;
+      } else {
+        dayTasks.forEach((t, i) => {
+          const statusIcon =
+            t.status === 'completed'
+              ? '🏆 CONCLUÍDA'
+              : t.status === 'confirmed'
+              ? '✅ CONFIRMADA'
+              : t.status === 'overdue'
+              ? '🚨 ATRASADA'
+              : '⏳ PENDENTE';
+          text += `*${i + 1}. [${t.startTime}] ${t.title}*\n`;
+          text += `   • Status: ${statusIcon}\n`;
+          if (t.location) text += `   • Local: ${t.location}\n`;
+          if (Array.isArray(t.observations) && t.observations.length > 0) {
+            text += `   • 📝 Obs: ${t.observations.join(' | ')}\n`;
+          } else if (t.lastWhatsAppReply) {
+            text += `   • 💬 WhatsApp: "${t.lastWhatsAppReply}"\n`;
+          }
+          text += `\n`;
+        });
+      }
+
+      text += `🟠 _Gerado automaticamente por Meu Controle Max_`;
+      return text;
+    }
+
+    // Abre janela limpa de Relatório em PDF / Impressão (Laranja & Branco)
+    function openPrintableDailyReport(tasks, dateISO = getTodayISO(), ownerName = 'Meu Controle Max') {
+      const dayTasks = (tasks || [])
+        .filter(t => t.date === dateISO)
+        .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+      const completed = dayTasks.filter(t => t.status === 'completed').length;
+      const confirmed = dayTasks.filter(t => t.status === 'confirmed').length;
+      const pending = dayTasks.filter(t => !['completed', 'confirmed', 'cancelled'].includes(t.status)).length;
+
+      const rowsHtml = dayTasks.length
+        ? dayTasks
+            .map(t => {
+              const statLabel =
+                t.status === 'completed'
+                  ? '🏆 Concluída'
+                  : t.status === 'confirmed'
+                  ? '✅ Confirmada'
+                  : t.status === 'overdue'
+                  ? '🚨 Atrasada'
+                  : '⏳ Pendente';
+              const notesHtml =
+                Array.isArray(t.observations) && t.observations.length > 0
+                  ? t.observations.map(o => `<div>📝 ${o}</div>`).join('')
+                  : t.lastWhatsAppReply
+                  ? `<div>💬 "${t.lastWhatsAppReply}"</div>`
+                  : '<span style="color:#9CA3AF">—</span>';
+              return `
+                <tr>
+                  <td style="font-family:monospace;font-weight:700;color:#EA580C;">${t.startTime} - ${t.endTime || ''}</td>
+                  <td><strong>${t.title}</strong>${t.description ? `<br/><small style="color:#6B7280">${t.description}</small>` : ''}</td>
+                  <td><strong>${statLabel}</strong></td>
+                  <td>${notesHtml}</td>
+                </tr>
+              `;
+            })
+            .join('')
+        : `<tr><td colspan="4" style="text-align:center;padding:24px;color:#6B7280;">Nenhuma atividade registrada nesta data.</td></tr>`;
+
+      const win = window.open('', '_blank');
+      if (!win) return;
+      win.document.write(`
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Relatório do Dia - ${formatDateBR(dateISO)} - Meu Controle Max</title>
+          <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; color: #18181B; margin: 32px; background: #FFFFFF; }
+            .header { border-bottom: 3px solid #FF6B00; padding-bottom: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+            .title { font-size: 22px; font-weight: 800; color: #EA580C; margin: 0; }
+            .sub { font-size: 13px; color: #52525B; margin-top: 4px; }
+            .kpis { display: flex; gap: 12px; margin-bottom: 20px; }
+            .kpi { flex: 1; border: 1.5px solid #FDBA74; background: #FFF7ED; border-radius: 12px; padding: 12px; text-align: center; }
+            .kpi b { font-size: 20px; color: #EA580C; display: block; }
+            .kpi span { font-size: 12px; color: #52525B; font-weight: 600; }
+            table { width: 100%; border-collapse: collapse; font-size: 13px; }
+            th { background: #FF6B00; color: #FFFFFF; text-align: left; padding: 10px 12px; font-weight: 800; }
+            td { border-bottom: 1px solid #FED7AA; padding: 10px 12px; vertical-align: top; }
+            tr:nth-child(even) td { background: #FFFBEB; }
+            .print-btn { background: #FF6B00; color: #FFF; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+            @media print { .no-print { display: none !important; } body { margin: 12px; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1 class="title">🟠 MEU CONTROLE MAX — RELATÓRIO DE ATIVIDADES</h1>
+              <div class="sub">📅 Data: <strong>${formatDateBR(dateISO)}</strong> • Responsável: <strong>${ownerName}</strong></div>
+            </div>
+            <button class="print-btn no-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+          </div>
+          <div class="kpis">
+            <div class="kpi"><b>${dayTasks.length}</b><span>Total do Dia</span></div>
+            <div class="kpi"><b>${completed}</b><span>🏆 Concluídas</span></div>
+            <div class="kpi"><b>${confirmed}</b><span>✅ Confirmadas</span></div>
+            <div class="kpi"><b>${pending}</b><span>⏳ Pendentes</span></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:120px;">Horário</th>
+                <th>Atividade</th>
+                <th style="width:140px;">Status</th>
+                <th>Observações & Respostas WhatsApp</th>
+              </tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </body>
+        </html>
+      `);
+      win.document.close();
     }
 
     // =========================================================================
@@ -420,11 +625,11 @@
         `⚡ *Prioridade:* ${priorityInfo.emoji} ${priorityInfo.label}\n` +
         (task.location ? `📍 *Local:* ${task.location}\n` : '') +
         existingNotes +
-        `\n💬 *RESPONDA AQUI NO WHATSAPP:*\n` +
-        `• *OK* (ou *1*) → Confirmar recebimento\n` +
-        `• *CONCLUIDO* (ou *FEITO*) → Marcar atividade como CONCLUÍDA 🏆\n` +
-        `• *OK + observação* ou *CONCLUIDO + observação* → Salvar anotação na agenda!\n` +
-        `• *ADIAR 10* → Adiar 10 minutos`
+        `\n💬 *CHECK-LIST NO WHATSAPP (RESPONDA AQUI):*\n` +
+        `• *OK* (ou *1*) → Confirmar que viu o lembrete\n` +
+        `• *CONCLUIDO* (ou *FEITO*) → Marcar como CONCLUÍDA no Check-list 🏆\n` +
+        `• *NAO* (ou *NAO CONCLUIDO* / *PENDENTE*) → Não concluída (volta automaticamente para o *TOPO DE AMANHÃ* 📌)\n` +
+        `• *OK / CONCLUIDO / NAO + observação* → Salvar anotação na atividade!`
       );
     }
 
@@ -465,21 +670,46 @@
         t.includes('MEU CONTROLE MAX') ||
         t.includes('TASKFLOW') ||
         t.includes('RESPONDA AQUI NO WHATSAPP') ||
+        t.includes('CHECK-LIST NO WHATSAPP') ||
         t.includes('Ciclo ativo:') ||
         t.includes('Presença Confirmada às') ||
         t.includes('RESPOSTA IDENTIFICADA') ||
         t.includes('OBSERVAÇÃO SALVA') ||
-        t.includes('ATIVIDADE CONCLUÍDA')
+        t.includes('ATIVIDADE CONCLUÍDA') ||
+        t.includes('REPROGRAMADA PARA O TOPO') ||
+        t.includes('RESUMO E RELATÓRIO DO DIA') ||
+        t.includes('ATIVIDADE CRIADA PELO WHATSAPP') ||
+        t.includes('Gerado automaticamente por Meu Controle Max')
       ) {
         return true;
       }
       return false;
     }
 
-    // Interpreta a resposta enviada pelo usuário no WhatsApp (Conclusão, Confirmação, Observação, Adiamento ou Cancelamento)
+    // Interpreta a resposta enviada pelo usuário no WhatsApp (Criar Tarefa, Resumo, Não Concluída -> Topo Amanhã, Conclusão, Confirmação, Observação, Adiamento ou Cancelamento)
     function parseUserWhatsAppReply(rawText) {
       const cleaned = String(rawText || '').trim();
       if (!cleaned) return null;
+
+      // 0A. Pedido de Resumo / Agenda do Dia (ex: "resumo", "agenda", "relatorio", "relatório", "tarefas de hoje", "checklist")
+      if (/^(resumo|agenda|relat[oó]rio|tarefas|compromissos|lista|hoje|check-?list)[\s.!]*$/i.test(cleaned)) {
+        return {
+          action: 'daily_summary',
+          raw: cleaned,
+        };
+      }
+
+      // 0B. Criar nova tarefa direto pelo WhatsApp (ex: "Agendar vistoria às 14:30", "Criar reunião amanhã 10:00", "Nova: ver alimentação 09:50", "Cadastrar check-in 08:00")
+      const createMatch = cleaned.match(
+        /^(agendar|agende|agenda|criar|crie|nova\s+tarefa|novo\s+compromisso|nova\s+atividade|nova|novo|cadastrar|cadastre|marcar|marque|me\s+lembre|lembrar)\b[\s,.:;-]+(.+)$/i
+      );
+      if (createMatch && createMatch[2] && createMatch[2].trim().length >= 3) {
+        return {
+          action: 'create_task',
+          commandText: createMatch[2].trim(),
+          raw: cleaned,
+        };
+      }
 
       // 1. Adiamento (ex: "adiar", "adiar 15", "depois")
       const snoozeMatch = cleaned.match(/^(adiar|adia|depois|atrasar)\b(?:\s*(\d+))?(?:[\s,.:;-]*(.*))?$/i);
@@ -498,6 +728,26 @@
         return {
           action: 'cancel',
           note: (cancelMatch[2] || '').trim(),
+          raw: cleaned,
+        };
+      }
+
+      // 2.5. NÃO CONCLUÍDA -> Jogar automaticamente para o TOPO do dia seguinte (Check-list)
+      // Exemplos: "não", "nao", "n", "não concluído", "nao concluido", "ainda não", "pendente", "amanhã", "não deu tempo", "não, faltou peça"
+      const notCompletedMatch = cleaned.match(
+        /^(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]|ainda\s+n[aã]o|n[aã]o\s+deu|ficou\s+pendente|pendente|amanh[aã]|jogar?\s+p(?:ara)?\s+amanh[aã]|passar?\s+p(?:ara)?\s+amanh[aã]|n[aã]o|nao|n|❌+)\b(?:[\s,.:;-]*(.*))?$/i
+      );
+      if (notCompletedMatch) {
+        return {
+          action: 'not_completed_rollover',
+          note: (notCompletedMatch[2] || '').trim(),
+          raw: cleaned,
+        };
+      }
+      if (/\b(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|ficou\s+pendente|deixar\s+para\s+amanh[aã])\b/i.test(cleaned)) {
+        return {
+          action: 'not_completed_rollover',
+          note: cleaned,
           raw: cleaned,
         };
       }
@@ -1076,7 +1326,7 @@
     // =========================================================================
     // 7. COMPONENTES VISUAIS: CENTRAL MULTI-CANAL (WHATSAPP + TELEGRAM + SMS)
     // =========================================================================
-    function TelegramAlertPopup({ alertData, onConfirm, onComplete, onSnooze, onCancelAlert, onClose, onEscalateToCallNow, userPhone }) {
+    function TelegramAlertPopup({ alertData, onConfirm, onComplete, onRolloverToTomorrow, onSnooze, onCancelAlert, onClose, onEscalateToCallNow, userPhone }) {
       const [selectedChannelTab, setSelectedChannelTab] = useState('whatsapp'); // 'whatsapp' | 'telegram' | 'sms'
       const [quickNote, setQuickNote] = useState('');
 
@@ -1176,18 +1426,18 @@
                   <p>⚡ <span className="text-[#EA580C] font-semibold">Prioridade:</span> <strong>{priorityInfo.emoji} {priorityInfo.label}</strong></p>
                 </div>
                 <p className="text-[11px] text-[#7C2D12] font-medium">
-                  💬 <strong>Leitura automática ativa:</strong> responda <strong>"OK"</strong> (confirmar), <strong>"CONCLUIDO"</strong> (marcar atividade como concluída 🏆) ou <strong>"OK / CONCLUIDO + observação"</strong> direto no seu WhatsApp!
+                  💬 <strong>Check-list via WhatsApp:</strong> responda <strong>"CONCLUIDO"</strong> (finalizar 🏆), <strong>"NAO"</strong> ou <strong>"NAO CONCLUIDO"</strong> (volta sozinho para o <strong>TOPO DE AMANHÃ 📌</strong>) ou <strong>"OK"</strong> (ciente)!
                 </p>
               </div>
 
               {/* Campo para Adicionar Observação ao Confirmar */}
               <div className="space-y-1">
                 <label className="block text-[11px] font-extrabold text-[#EA580C]">
-                  📝 Adicionar observação / anotação nesta atividade (Opcional):
+                  📝 Adicionar observação / motivo nesta atividade (Opcional):
                 </label>
                 <input
                   type="text"
-                  placeholder="Ex: Equipe avisada, pedir 15 marmitas extras..."
+                  placeholder="Ex: Equipe avisada, ou motivo de ficar para amanhã..."
                   value={quickNote}
                   onChange={e => setQuickNote(e.target.value)}
                   className="w-full rounded-xl bg-[#FFF7ED] border border-[#FDBA74] px-3 py-2 text-xs text-[#18181B] font-medium focus:outline-none focus:border-[#FF6B00]"
@@ -1208,10 +1458,19 @@
                       onClick={() => onComplete(task.id, selectedChannelTab, quickNote, quickNote ? `CONCLUIDO • ${quickNote}` : 'CONCLUIDO')}
                       className="py-2.5 px-3 rounded-xl bg-[#EA580C] hover:bg-[#C2410C] text-white font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-lg badge-orange-white"
                     >
-                      🏆 MARCAR CONCLUÍDA
+                      🏆 SIM, CONCLUÍDA!
                     </button>
                   )}
                 </div>
+
+                {onRolloverToTomorrow && (
+                  <button
+                    onClick={() => onRolloverToTomorrow(task.id, quickNote, quickNote ? `NÃO CONCLUÍDO • ${quickNote}` : 'NÃO CONCLUÍDO')}
+                    className="w-full py-2.5 px-3 rounded-xl bg-[#FFF7ED] hover:bg-orange-100 text-[#EA580C] border-2 border-[#FF6B00] font-extrabold text-xs transition flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    ↪️ NÃO CONCLUÍDA ➔ VOLTAR NO TOPO DE AMANHÃ 📌
+                  </button>
+                )}
 
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
@@ -1478,6 +1737,10 @@
         observations: [],
         lastWhatsAppReply: '',
         recurrence: 'none',
+        recurrenceCount: 7,
+        customWeekdays: [1, 2, 3, 4, 5],
+        seriesId: '',
+        applyToSeries: false,
         leadTimeMinutes: 5,
         notifyTelegram: true,
         notifyVoiceCall: true,
@@ -1509,6 +1772,10 @@
             observations: Array.isArray(initialTask.observations) ? initialTask.observations : [],
             lastWhatsAppReply: initialTask.lastWhatsAppReply || '',
             recurrence: initialTask.recurrence || 'none',
+            recurrenceCount: Number(initialTask.recurrenceCount ?? 7),
+            customWeekdays: Array.isArray(initialTask.customWeekdays) ? initialTask.customWeekdays : [1, 2, 3, 4, 5],
+            seriesId: initialTask.seriesId || '',
+            applyToSeries: false,
             leadTimeMinutes: Number(initialTask.leadTimeMinutes ?? 5),
             notifyTelegram: initialTask.notifyTelegram !== false,
             notifyVoiceCall: initialTask.notifyVoiceCall !== false,
@@ -1534,6 +1801,10 @@
             observations: [],
             lastWhatsAppReply: '',
             recurrence: 'none',
+            recurrenceCount: 7,
+            customWeekdays: [1, 2, 3, 4, 5],
+            seriesId: '',
+            applyToSeries: false,
             leadTimeMinutes: 5,
             notifyTelegram: true,
             notifyVoiceCall: true,
@@ -1745,11 +2016,19 @@
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-tf-muted mb-1">
-                    🔄 Recorrência
+                    🔄 Recorrência (Repetir?)
                   </label>
                   <select
                     value={form.recurrence}
-                    onChange={e => setForm({ ...form, recurrence: e.target.value })}
+                    onChange={e => {
+                      const nextRec = e.target.value;
+                      const opt = RECURRENCE_OPTIONS.find(r => r.id === nextRec);
+                      setForm({
+                        ...form,
+                        recurrence: nextRec,
+                        recurrenceCount: nextRec === 'none' ? 1 : (opt?.defaultCount || 7),
+                      });
+                    }}
                     className="w-full rounded-xl bg-[#121A15] border border-tf-border px-3 py-2 text-xs font-semibold text-tf-text"
                   >
                     {RECURRENCE_OPTIONS.map(r => (
@@ -1773,6 +2052,107 @@
                   </select>
                 </div>
               </div>
+
+              {/* Painel de Geração Automática de Repetições na Agenda */}
+              {form.recurrence !== 'none' && (
+                <div className="rounded-2xl border-2 border-[#FF6B00] bg-[#FFF7ED] p-4 space-y-3 animate-pop-in">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-extrabold text-[#EA580C] flex items-center gap-1.5">
+                        <span>🔁</span>
+                        <span>Criação Automática das Repetições na Agenda</span>
+                      </h4>
+                      <p className="text-[11px] text-[#7C2D12]">
+                        O sistema vai criar automaticamente cada dia na sua Agenda (e você pode editar qualquer dia separadamente depois!).
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-[#FDBA74]">
+                      <label className="text-xs font-extrabold text-[#EA580C]">
+                        Quantas ocorrências criar?
+                      </label>
+                      <input
+                        type="number"
+                        min="2"
+                        max="60"
+                        value={form.recurrenceCount}
+                        onChange={e => setForm({ ...form, recurrenceCount: Math.max(1, Math.min(60, Number(e.target.value) || 2)) })}
+                        className="w-16 rounded-lg bg-[#FFF7ED] border border-[#FF6B00] px-2 py-1 text-center font-mono text-xs font-extrabold text-[#EA580C]"
+                      />
+                    </div>
+                  </div>
+
+                  {form.recurrence === 'custom' && (
+                    <div className="space-y-1.5">
+                      <span className="block text-[11px] font-extrabold text-[#EA580C]">
+                        Selecione os dias da semana em que a atividade se repete:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {WEEKDAY_SHORT.map(wd => {
+                          const active = (form.customWeekdays || []).includes(wd.day);
+                          return (
+                            <button
+                              key={wd.day}
+                              type="button"
+                              onClick={() => {
+                                const current = form.customWeekdays || [];
+                                const next = active
+                                  ? current.filter(d => d !== wd.day)
+                                  : [...current, wd.day].sort();
+                                setForm({ ...form, customWeekdays: next.length ? next : [wd.day] });
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-extrabold border transition ${
+                                active
+                                  ? 'bg-[#FF6B00] text-white border-[#EA580C] shadow badge-orange-white'
+                                  : 'bg-white text-[#7C2D12] border-orange-200 hover:border-[#FF6B00]'
+                              }`}
+                            >
+                              {wd.short}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {(() => {
+                    const previewDates = generateRecurringTaskDates(
+                      form.date,
+                      form.recurrence,
+                      form.recurrenceCount,
+                      form.customWeekdays
+                    );
+                    return (
+                      <div className="space-y-1 pt-1 border-t border-orange-200">
+                        <div className="text-[11px] font-bold text-[#EA580C]">
+                          📅 {previewDates.length} datas serão criadas/atualizadas na Agenda às {form.startTime}:
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                          {previewDates.map((dISO, i) => (
+                            <span
+                              key={dISO + i}
+                              className="px-2 py-0.5 rounded-lg bg-white border border-orange-300 text-[11px] font-mono font-bold text-[#EA580C]"
+                            >
+                              {i + 1}º {formatDateBR(dISO)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {form.id && form.seriesId && (
+                    <label className="flex items-center gap-2 pt-2 border-t border-orange-200 text-xs font-extrabold text-[#EA580C] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(form.applyToSeries)}
+                        onChange={e => setForm({ ...form, applyToSeries: e.target.checked })}
+                        className="accent-[#FF6B00]"
+                      />
+                      <span>🔄 Aplicar esta edição (título, horário, categoria, prioridade) também nas demais datas desta série</span>
+                    </label>
+                  )}
+                </div>
+              )}
 
               {/* Localização e Anexos Opcionais */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1835,16 +2215,33 @@
                 </div>
               </div>
 
-              {/* Observações & Respostas Identificadas pelo WhatsApp */}
+              {/* Observações & Respostas Identificadas pelo WhatsApp (100% Editáveis) */}
               <div className="rounded-2xl border-2 border-[#FDBA74] bg-[#FFF7ED] p-3.5 space-y-2.5">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <label className="block text-xs font-extrabold uppercase tracking-wider text-[#EA580C]">
-                    💬 Respostas & Observações da Atividade (WhatsApp / Manual)
+                    💬 Respostas & Observações da Atividade (100% Editáveis)
                   </label>
+                </div>
+
+                {/* Edição direta da última resposta do WhatsApp */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-[#EA580C] shrink-0">📲 Resposta WhatsApp:</span>
+                  <input
+                    type="text"
+                    placeholder="Nenhuma resposta ainda (ou digite/edite aqui)..."
+                    value={form.lastWhatsAppReply || ''}
+                    onChange={e => setForm({ ...form, lastWhatsAppReply: e.target.value })}
+                    className="flex-1 rounded-xl bg-white border border-orange-200 px-3 py-1.5 text-xs text-tf-text font-semibold"
+                  />
                   {form.lastWhatsAppReply && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FF6B00] text-white font-bold badge-orange-white">
-                      📲 Última resposta no WhatsApp: "{form.lastWhatsAppReply}"
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, lastWhatsAppReply: '' })}
+                      className="text-xs text-red-500 font-bold px-2"
+                      title="Limpar resposta"
+                    >
+                      Limpar
+                    </button>
                   )}
                 </div>
 
@@ -1865,7 +2262,7 @@
                   <button
                     type="button"
                     onClick={handleAddObservation}
-                    className="px-3.5 py-2 rounded-xl bg-[#FF6B00] text-white text-xs font-extrabold shadow-sm"
+                    className="px-3.5 py-2 rounded-xl bg-[#FF6B00] text-white text-xs font-extrabold shadow-sm badge-orange-white"
                   >
                     + Adicionar Nota 📝
                   </button>
@@ -1873,12 +2270,25 @@
 
                 {Array.isArray(form.observations) && form.observations.length > 0 && (
                   <div className="space-y-1.5 pt-1">
+                    <span className="block text-[10px] font-bold text-[#7C2D12]">
+                      ✏️ Clique em qualquer observação abaixo para editar o texto diretamente:
+                    </span>
                     {form.observations.map((obs, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-white border border-orange-200 text-xs font-semibold text-tf-text"
+                        className="flex items-center justify-between gap-2 px-2.5 py-1 rounded-xl bg-white border border-orange-200 text-xs font-semibold text-tf-text"
                       >
-                        <span>📝 {obs}</span>
+                        <span className="shrink-0">📝</span>
+                        <input
+                          type="text"
+                          value={obs}
+                          onChange={e => {
+                            const updated = [...form.observations];
+                            updated[idx] = e.target.value;
+                            setForm({ ...form, observations: updated });
+                          }}
+                          className="flex-1 bg-transparent text-xs font-semibold text-tf-text focus:outline-none focus:bg-orange-50 px-1.5 py-0.5 rounded"
+                        />
                         <button
                           type="button"
                           onClick={() =>
@@ -1887,7 +2297,8 @@
                               observations: f.observations.filter((_, i) => i !== idx),
                             }))
                           }
-                          className="text-red-500 hover:text-red-700 font-bold"
+                          className="text-red-500 hover:text-red-700 font-bold px-1.5"
+                          title="Excluir observação"
                         >
                           ×
                         </button>
@@ -2050,6 +2461,9 @@
       setFocusModeOnly,
       onOpenNewTask,
       onEditTask,
+      onQuickUpdateTask,
+      onRolloverToTomorrow,
+      onSendDailySummaryWhatsApp,
       onToggleComplete,
       onSmartReschedule,
       onTriggerTelegramAlert,
@@ -2063,7 +2477,20 @@
         () =>
           tasks
             .filter(t => t.date === todayISO)
-            .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')),
+            .sort((a, b) => {
+              // 1º Tarefas já concluídas ficam no final do Check-list para destacar o que falta fazer no topo
+              const aDone = a.status === 'completed' ? 1 : 0;
+              const bDone = b.status === 'completed' ? 1 : 0;
+              if (aDone !== bDone) return aDone - bDone;
+
+              // 2º Tarefas não concluídas vindas do dia anterior (pinnedToTop) ficam no TOPO ABSOLUTO!
+              const aPinned = a.pinnedToTop ? 1 : 0;
+              const bPinned = b.pinnedToTop ? 1 : 0;
+              if (aPinned !== bPinned) return bPinned - aPinned;
+
+              // 3º Ordem de horário
+              return (a.startTime || '').localeCompare(b.startTime || '');
+            }),
         [tasks, todayISO]
       );
 
@@ -2128,15 +2555,50 @@
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => onOpenNewTask()}
-                  className="px-5 py-3 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-[#FF8C1A] text-white font-extrabold text-xs sm:text-sm shadow-md hover:brightness-105 transition flex items-center gap-2"
+                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-[#FF8C1A] text-white font-extrabold text-xs sm:text-sm shadow-md hover:brightness-105 transition flex items-center gap-1.5 badge-orange-white"
                 >
                   <span>➕</span>
                   <span>Novo Compromisso</span>
                 </button>
+                {onSendDailySummaryWhatsApp && (
+                  <button
+                    onClick={() => onSendDailySummaryWhatsApp(todayISO)}
+                    className="px-3.5 py-2.5 rounded-2xl bg-[#FFF7ED] hover:bg-orange-100 text-[#EA580C] border-2 border-[#FF6B00] font-extrabold text-xs transition flex items-center gap-1.5 shadow-sm"
+                    title="Envia a lista completa de hoje com status e observações para o seu WhatsApp"
+                  >
+                    <span>📲</span>
+                    <span>Resumo no WhatsApp</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    const txt = buildDailySummaryReportText(tasks, todayISO);
+                    navigator.clipboard?.writeText(txt);
+                    alert('📋 Relatório do dia copiado! Agora é só colar no grupo da equipe no WhatsApp.');
+                  }}
+                  className="px-3.5 py-2.5 rounded-2xl bg-white hover:bg-orange-50 text-[#EA580C] border border-[#FDBA74] font-extrabold text-xs transition flex items-center gap-1.5"
+                  title="Copiar relatório formatado para colar no grupo da equipe"
+                >
+                  <span>📋</span>
+                  <span>Copiar p/ Equipe</span>
+                </button>
+                <button
+                  onClick={() => openPrintableDailyReport(tasks, todayISO, settings.fullName)}
+                  className="px-3.5 py-2.5 rounded-2xl bg-white hover:bg-orange-50 text-[#EA580C] border border-[#FDBA74] font-extrabold text-xs transition flex items-center gap-1.5"
+                  title="Gerar Relatório em PDF / Impressão com todas as atividades e observações"
+                >
+                  <span>🖨️</span>
+                  <span>Gerar PDF</span>
+                </button>
               </div>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-orange-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#7C2D12]">
+              <span>
+                💡 <strong>Comandos no seu WhatsApp (+55 89 98102-6502):</strong> envie <strong>"Agendar [tarefa] às [hora]"</strong> para criar sozinho, <strong>"OK"</strong> para confirmar, <strong>"CONCLUIDO"</strong> para concluir ou <strong>"RESUMO"</strong> para receber a lista do dia!
+              </span>
             </div>
           </div>
 
@@ -2222,17 +2684,17 @@
 
           {/* Grid Principal: 🔥 FOCO DE HOJE (Esquerda 2 cols) + Calendário Resumido & Linha do Tempo (Direita 1 col) */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            {/* 🔥 FOCO DE HOJE */}
+            {/* 🔥 FOCO DE HOJE • CHECK-LIST DE EXECUÇÃO */}
             <div className="xl:col-span-2 rounded-3xl border border-tf-border bg-tf-card p-5 sm:p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-2xl">🔥</span>
+                  <span className="text-2xl">☑️</span>
                   <div>
                     <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-tf-text">
-                      FOCO DE HOJE
+                      CHECK-LIST DE HOJE (FOCO & EXECUÇÃO)
                     </h2>
                     <p className="text-xs text-tf-muted">
-                      Tarefas prioritárias do dia com cobrança automática via Telegram e Telefone
+                      Responda <strong>CONCLUIDO</strong> ou <strong>NAO</strong> no WhatsApp • Se não concluir, volta automaticamente para o <strong>TOPO de amanhã</strong>!
                     </p>
                   </div>
                 </div>
@@ -2252,6 +2714,23 @@
                 </div>
               </div>
 
+              {/* Barra de Progresso do Check-list Diário */}
+              {totalToday > 0 && (
+                <div className="rounded-2xl bg-[#FFF7ED] border border-[#FDBA74] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-xs font-extrabold text-[#EA580C]">
+                    ☑️ Progresso do Check-list: {todayTasks.filter(t => t.status === 'completed').length} de {totalToday} concluída(s)
+                  </div>
+                  <div className="flex-1 max-w-xs h-2.5 rounded-full bg-orange-100 overflow-hidden border border-orange-200">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#FF6B00] to-[#FF8C1A] transition-all duration-500"
+                      style={{
+                        width: `${Math.round((todayTasks.filter(t => t.status === 'completed').length / totalToday) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {focusTasks.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-tf-border p-8 text-center space-y-2">
                   <div className="text-3xl">🌟</div>
@@ -2260,7 +2739,7 @@
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {focusTasks.map(task => {
+                  {focusTasks.map((task, taskIdx) => {
                     const cat = getCategoryObj(task.category);
                     const prio = PRIORITIES[task.priority] || PRIORITIES.high;
                     const stat = STATUS_MAP[task.status] || STATUS_MAP.pending;
@@ -2272,11 +2751,22 @@
                         className={`rounded-2xl border p-4 transition-all ${
                           isDone
                             ? 'border-tf-border bg-black/20 opacity-75'
+                            : task.pinnedToTop
+                            ? 'border-2 border-[#FF6B00] bg-[#FFF7ED] shadow-md'
                             : task.status === 'overdue'
                             ? 'border-red-500/50 bg-red-950/15'
                             : 'border-tf-border bg-[#141D18] hover:border-[#FF6B00]/50'
                         }`}
                       >
+                        {task.pinnedToTop && !isDone && (
+                          <div className="mb-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#FF6B00] to-[#FF8C1A] text-white text-[11px] font-extrabold shadow-sm badge-orange-white">
+                            <span>📌</span>
+                            <span>
+                              PRIORIDADE Nº 1 NO TOPO DO CHECK-LIST
+                              {task.rolledOverFrom ? ` • Não concluída em ${formatDateBR(task.rolledOverFrom)}` : ''}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-start gap-3">
                             <button
@@ -2286,28 +2776,64 @@
                                   ? 'bg-[#FF8533] border-[#FF8533] text-[#101713] font-bold'
                                   : 'border-[#FF8533]/60 hover:border-[#FF6B00]'
                               }`}
-                              title="Marcar como concluída"
+                              title="Marcar item do Check-list como concluído"
                             >
                               {isDone ? '✓' : ''}
                             </button>
 
-                            <div className="space-y-1">
+                            <div className="space-y-1 flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-mono text-xs font-extrabold px-2 py-0.5 rounded-md bg-white/5 text-[#FF6B00]">
-                                  ⏰ {task.allDay ? 'Dia Inteiro' : `${task.startTime} - ${task.endTime}`}
-                                </span>
+                                <label className="inline-flex items-center gap-1 font-mono text-xs font-extrabold px-2 py-0.5 rounded-md bg-[#FFF7ED] border border-orange-200 text-[#EA580C]">
+                                  <span>⏰</span>
+                                  <input
+                                    type="time"
+                                    value={task.startTime || '09:00'}
+                                    onChange={e =>
+                                      onQuickUpdateTask &&
+                                      onQuickUpdateTask(task.id, {
+                                        startTime: e.target.value,
+                                        endTime: addMinutesToTime(e.target.value, 60),
+                                      })
+                                    }
+                                    className="bg-transparent font-mono text-xs font-extrabold text-[#EA580C] focus:outline-none cursor-pointer"
+                                    title="Clique para editar o horário diretamente"
+                                  />
+                                </label>
                                 <span
                                   className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
                                   style={{ backgroundColor: cat.bg, color: cat.color, border: `1px solid ${cat.border}40` }}
                                 >
                                   {cat.emoji} {cat.name}
                                 </span>
-                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${prio.badgeBg}`}>
-                                  {prio.emoji} {prio.label}
-                                </span>
-                                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${stat.badge}`}>
-                                  {stat.label}
-                                </span>
+                                <select
+                                  value={task.priority}
+                                  onChange={e => onQuickUpdateTask && onQuickUpdateTask(task.id, { priority: e.target.value })}
+                                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full border cursor-pointer ${prio.badgeBg}`}
+                                  title="Alterar prioridade rapidamente"
+                                >
+                                  {Object.values(PRIORITIES).map(p => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.emoji} {p.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={task.status}
+                                  onChange={e => onQuickUpdateTask && onQuickUpdateTask(task.id, { status: e.target.value })}
+                                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full border cursor-pointer ${stat.badge}`}
+                                  title="Alterar status rapidamente"
+                                >
+                                  {Object.values(STATUS_MAP).map(s => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                {task.recurrence && task.recurrence !== 'none' && (
+                                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-orange-50 text-[#EA580C] border border-orange-200">
+                                    🔁 Recorrente
+                                  </span>
+                                )}
                                 {task.isFavorite && <span title="Favorita">📌</span>}
                               </div>
 
@@ -2316,6 +2842,7 @@
                                 className={`text-sm sm:text-base font-bold cursor-pointer hover:text-[#FF6B00] transition ${
                                   isDone ? 'line-through text-tf-muted' : 'text-tf-text'
                                 }`}
+                                title="Clique para editar todos os detalhes"
                               >
                                 {task.title}
                               </h3>
@@ -2327,14 +2854,28 @@
                               {(task.lastWhatsAppReply || (Array.isArray(task.observations) && task.observations.length > 0)) && (
                                 <div className="mt-1.5 rounded-xl bg-[#FFF7ED] border border-[#FDBA74] px-3 py-1.5 space-y-1 text-xs">
                                   {task.lastWhatsAppReply && (
-                                    <div className="font-extrabold text-[#EA580C]">
-                                      💬 Resposta WhatsApp: "{task.lastWhatsAppReply}"
+                                    <div className="font-extrabold text-[#EA580C] flex items-center justify-between gap-2">
+                                      <span>💬 Resposta WhatsApp: "{task.lastWhatsAppReply}"</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => onEditTask(task)}
+                                        className="text-[10px] underline font-bold text-[#EA580C]"
+                                      >
+                                        ✏️ editar
+                                      </button>
                                     </div>
                                   )}
                                   {Array.isArray(task.observations) &&
                                     task.observations.map((obs, idx) => (
-                                      <div key={idx} className="text-[11px] font-semibold text-tf-text">
-                                        📝 {obs}
+                                      <div key={idx} className="text-[11px] font-semibold text-tf-text flex items-center justify-between gap-2">
+                                        <span>📝 {obs}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => onEditTask(task)}
+                                          className="text-[10px] text-[#EA580C] hover:underline font-bold"
+                                        >
+                                          ✏️
+                                        </button>
                                       </div>
                                     ))}
                                 </div>
@@ -2363,14 +2904,23 @@
                             </div>
                           </div>
 
-                          {/* Ações Rápidas da Tarefa */}
+                          {/* Ações Rápidas da Tarefa (Check-list & Disparo) */}
                           <div className="flex flex-wrap sm:flex-nowrap items-center gap-1.5 self-end sm:self-center">
+                            {task.status !== 'completed' && onRolloverToTomorrow && (
+                              <button
+                                onClick={() => onRolloverToTomorrow(task.id, '', 'NÃO CONCLUÍDA (Movida pelo Painel)')}
+                                className="px-2.5 py-1.5 rounded-xl bg-[#FFF7ED] hover:bg-[#FF6B00] text-[#EA580C] hover:text-white border border-[#FF6B00] text-xs font-extrabold transition"
+                                title="Não foi concluída hoje? Clique para enviá-la automaticamente ao TOPO da lista de amanhã!"
+                              >
+                                ↪️ Topo Amanhã 📌
+                              </button>
+                            )}
                             <button
-                              onClick={() => onTriggerTelegramAlert(task, 'FALTAM 5 MINUTOS — Alerta WhatsApp + Telegram', 'whatsapp')}
+                              onClick={() => onTriggerTelegramAlert(task, 'CHECK-LIST WHATSAPP: FOI CONCLUÍDA OU NÃO?', 'whatsapp')}
                               className="px-2.5 py-1.5 rounded-xl bg-[#FF6B00]/20 hover:bg-[#FF6B00]/35 text-[#FF6B00] border border-[#FF6B00]/40 text-xs font-bold transition"
-                              title="Disparar Alerta de 5 Minutos no WhatsApp + SMS + Telegram"
+                              title="Perguntar no WhatsApp se foi concluída ou não"
                             >
-                              🟠 WhatsApp (5m)
+                              🟠 WhatsApp
                             </button>
                             <button
                               onClick={() => onTriggerTelegramAlert(task, 'FALTAM 5 MINUTOS — Alerta Telegram Bot', 'telegram')}
@@ -4842,12 +5392,207 @@
         [state.tasks, state.settings, showToast]
       );
 
+      // Dispara o Resumo / Relatório Diário completo no WhatsApp (+55 89 98102-6502)
+      const handleSendDailySummaryWhatsApp = useCallback(
+        (dateISO = getTodayISO()) => {
+          const summaryText = buildDailySummaryReportText(state.tasks, dateISO);
+          sendGreenApiWhatsAppMessage({
+            settings: state.settings,
+            text: summaryText,
+          })
+            .then(() => {
+              showToast(`📲 Resumo completo do dia (${formatDateBR(dateISO)}) enviado para o seu WhatsApp!`, 'success');
+            })
+            .catch(() => {
+              showToast(`📋 Resumo gerado! Verifique a conexão do WhatsApp.`, 'info');
+            });
+        },
+        [state.tasks, state.settings, showToast]
+      );
+
+      // Cria tarefa automaticamente a partir de uma mensagem enviada pelo usuário no WhatsApp (ex: "Agendar vistoria às 14:30")
+      const handleCreateTaskFromWhatsApp = useCallback(
+        (commandText, rawReplyText) => {
+          const parsedSpec = parseNaturalLanguageTask(commandText);
+          if (!parsedSpec) return;
+
+          const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          const rec = parsedSpec.recurrence || 'none';
+          const recCount = rec === 'daily' ? 7 : rec === 'weekly' ? 4 : rec === 'monthly' ? 3 : 1;
+          const datesToCreate = generateRecurringTaskDates(parsedSpec.date, rec, recCount, [1, 2, 3, 4, 5]);
+          const seriesId = datesToCreate.length > 1 ? 'series-wa-' + Date.now() : '';
+
+          const createdTasks = datesToCreate.map((dISO, idx) => ({
+            ...parsedSpec,
+            id: `tf-wa-${Date.now()}-${idx}`,
+            date: dISO,
+            status: 'pending',
+            recurrence: rec,
+            recurrenceCount: recCount,
+            seriesId,
+            attachments: [],
+            observations: [`[${nowStr}] 📲 Criada por comando no WhatsApp: "${rawReplyText}"`],
+            lastWhatsAppReply: rawReplyText,
+            isFavorite: true,
+            estimatedMinutes: 60,
+          }));
+
+          setState(prev => ({
+            ...prev,
+            tasks: [...createdTasks, ...prev.tasks],
+            notificationLogs: [
+              {
+                id: 'log-wacreate-' + Date.now(),
+                taskId: createdTasks[0].id,
+                taskTitle: parsedSpec.title,
+                channel: 'whatsapp',
+                stageLabel: `📲 Nova atividade criada via WhatsApp`,
+                status: 'confirmed',
+                userResponse: `➕ Criada: "${parsedSpec.title}" (${datesToCreate.length}x a partir de ${formatDateBR(parsedSpec.date)} às ${parsedSpec.startTime})`,
+                timestamp: `Hoje, ${nowStr}`,
+              },
+              ...prev.notificationLogs,
+            ],
+          }));
+
+          phoneAudio.playNotificationChime();
+          showToast(
+            `📲 Nova tarefa criada pelo WhatsApp: "${parsedSpec.title}" às ${parsedSpec.startTime} (${datesToCreate.length} dia(s))!`,
+            'success'
+          );
+
+          sendGreenApiWhatsAppMessage({
+            settings: state.settings,
+            text:
+              `📅 *MEU CONTROLE MAX – ATIVIDADE CRIADA PELO WHATSAPP!* ✅\n\n` +
+              `📌 *Atividade:* ${parsedSpec.title}\n` +
+              `📆 *Data Inicial:* ${formatDateBR(parsedSpec.date)}\n` +
+              `⏰ *Horário:* ${parsedSpec.startTime} - ${parsedSpec.endTime}\n` +
+              (datesToCreate.length > 1
+                ? `🔁 *Repetição Criada:* ${datesToCreate.length} ocorrências geradas na Agenda!\n`
+                : '') +
+              `🔔 *Automação:* Você será avisado faltando 5m, 3m, 2m, 1m e pós-início!`,
+          }).catch(() => {});
+        },
+        [state.settings, showToast]
+      );
+
+      // Quando o usuário responde "NÃO" / "NÃO CONCLUÍDO" no WhatsApp (ou clica no botão), a tarefa volta automaticamente para o TOPO do dia seguinte!
+      const handleRolloverToTomorrow = useCallback(
+        (taskId, reasonNote = '', rawReplyText = 'NÃO CONCLUÍDA') => {
+          clearAllRapidSequenceTimers();
+          if (escalationTimerRef.current) {
+            clearTimeout(escalationTimerRef.current);
+            escalationTimerRef.current = null;
+          }
+          const target = state.tasks.find(t => t.id === taskId);
+          if (!target) return;
+
+          const todayISO = getTodayISO();
+          const baseDate = target.date && target.date >= todayISO ? target.date : todayISO;
+          const tomorrowISO = addDaysISO(baseDate, 1);
+          const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          const cleanReason = String(reasonNote || '').trim();
+          const cleanRaw = String(rawReplyText || (cleanReason ? `NÃO CONCLUÍDO • ${cleanReason}` : 'NÃO CONCLUÍDA')).trim();
+
+          setState(prev => ({
+            ...prev,
+            tasks: prev.tasks.map(t => {
+              if (t.id !== taskId) return t;
+              const prevObs = Array.isArray(t.observations) ? t.observations : [];
+              const rolloverNote = cleanReason
+                ? `[${nowStr}] 📌 Não concluída em ${formatDateBR(target.date)} ("${cleanReason}") ➔ Movida p/ TOPO de ${formatDateBR(tomorrowISO)}`
+                : `[${nowStr}] 📌 Não concluída em ${formatDateBR(target.date)} ➔ Movida automaticamente p/ TOPO de ${formatDateBR(tomorrowISO)}`;
+              return {
+                ...t,
+                date: tomorrowISO,
+                status: 'pending',
+                priority: 'urgent',
+                pinnedToTop: true,
+                rolledOverFrom: target.date || todayISO,
+                lastWhatsAppReply: cleanRaw,
+                observations: [...prevObs, rolloverNote],
+              };
+            }),
+            notificationLogs: [
+              {
+                id: 'log-roll-' + Date.now(),
+                taskId,
+                taskTitle: target.title,
+                channel: 'whatsapp',
+                stageLabel: `📌 Não concluída ➔ Movida para o TOPO de ${formatDateBR(tomorrowISO)}`,
+                status: 'snoozed',
+                userResponse: `↪️ "${cleanRaw}" • Fixada como Prioridade Nº 1 no topo do Check-list de amanhã`,
+                timestamp: `Hoje, ${nowStr}`,
+              },
+              ...prev.notificationLogs,
+            ],
+          }));
+
+          setActiveTelegramPopup(null);
+          setActivePhoneCall(null);
+          phoneAudio.playNotificationChime();
+
+          showToast(
+            `📌 "${target.title}" marcada como NÃO concluída e enviada para o TOPO do Check-list de amanhã (${formatDateBR(tomorrowISO)})!`,
+            'warning'
+          );
+
+          sendGreenApiWhatsAppMessage({
+            settings: state.settings,
+            text:
+              `📌 *MEU CONTROLE MAX – REPROGRAMADA PARA O TOPO DE AMANHÃ!* 🔄\n\n` +
+              `📌 *Atividade:* ${target.title}\n` +
+              `📅 *Nova Data:* Amanhã (${formatDateBR(tomorrowISO)}) às ${target.startTime}\n` +
+              `🔥 *Posição no Check-list:* FIXADA NO TOPO (Prioridade Nº 1)\n` +
+              `💬 *Sua Resposta:* "${cleanRaw}"\n` +
+              (cleanReason ? `📝 *Motivo / Observação:* "${cleanReason}"\n` : '') +
+              `✅ _Amanhã ela aparecerá no topo do seu Check-list para ser executada primeiro!_`,
+          }).catch(() => {});
+        },
+        [state.tasks, state.settings, clearAllRapidSequenceTimers, showToast]
+      );
+
+      // Auto-Rollover de Virada de Dia: se houver atividades de dias anteriores que NÃO foram concluídas, puxa automaticamente para HOJE no TOPO do Check-list!
+      useEffect(() => {
+        const todayISO = getTodayISO();
+        const unfinishedPastTasks = (state.tasks || []).filter(
+          t => t.date && t.date < todayISO && t.status !== 'completed' && t.status !== 'cancelled'
+        );
+        if (unfinishedPastTasks.length === 0) return;
+
+        const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        setState(prev => ({
+          ...prev,
+          tasks: prev.tasks.map(t => {
+            if (t.date && t.date < todayISO && t.status !== 'completed' && t.status !== 'cancelled') {
+              const prevObs = Array.isArray(t.observations) ? t.observations : [];
+              return {
+                ...t,
+                rolledOverFrom: t.rolledOverFrom || t.date,
+                date: todayISO,
+                status: 'pending',
+                priority: 'urgent',
+                pinnedToTop: true,
+                observations: [
+                  ...prevObs,
+                  `[${nowStr}] 📌 Virada de Check-list: Não concluída em ${formatDateBR(t.date)} ➔ Trazida para o TOPO de Hoje`,
+                ],
+              };
+            }
+            return t;
+          }),
+        }));
+        showToast(
+          `📌 ${unfinishedPastTasks.length} atividade(s) não concluída(s) anteriormente foram trazidas automaticamente para o TOPO do Check-list de hoje!`,
+          'info'
+        );
+      }, [nowTime.toDateString()]);
+
       // Polling em tempo real (a cada 3 segundos) das respostas do usuário no WhatsApp via Green-API
       useEffect(() => {
         const interval = setInterval(async () => {
           try {
-            if (!state.tasks || state.tasks.length === 0) return;
-
             const replies = await pollGreenApiUserReplies({
               settings: state.settings,
               sinceTimestampSec: whatsappPollSinceRef.current,
@@ -4861,10 +5606,22 @@
               const parsed = parseUserWhatsAppReply(reply.text);
               if (!parsed) continue;
 
+              // Comandos globais que funcionam mesmo se a agenda estiver vazia:
+              if (parsed.action === 'daily_summary') {
+                handleSendDailySummaryWhatsApp(todayISO);
+                continue;
+              }
+              if (parsed.action === 'create_task') {
+                handleCreateTaskFromWhatsApp(parsed.commandText, parsed.raw);
+                continue;
+              }
+
+              if (!state.tasks || state.tasks.length === 0) continue;
+
               // Identifica a tarefa alvo:
-              // Se o usuário enviou "CONCLUIDO", prioriza a tarefa aberta no popup, ou uma tarefa de hoje ainda não concluída (notificada, confirmada, em andamento ou pendente)
+              // Se o usuário enviou "CONCLUIDO" ou "NAO CONCLUIDO", prioriza a tarefa aberta no popup, ou uma tarefa de hoje ainda não concluída (notificada, confirmada, em andamento ou pendente)
               const targetTask =
-                parsed.action === 'complete'
+                parsed.action === 'complete' || parsed.action === 'not_completed_rollover'
                   ? activeTelegramPopup?.task ||
                     state.tasks.find(t => t.date === todayISO && t.status === 'notified') ||
                     state.tasks.find(t => t.date === todayISO && t.status === 'confirmed') ||
@@ -4879,7 +5636,9 @@
 
               if (!targetTask) continue;
 
-              if (parsed.action === 'complete') {
+              if (parsed.action === 'not_completed_rollover') {
+                handleRolloverToTomorrow(targetTask.id, parsed.note || '', parsed.raw);
+              } else if (parsed.action === 'complete') {
                 handleCompleteTaskFromWhatsApp(targetTask.id, 'whatsapp', parsed.note || '', parsed.raw);
               } else if (parsed.action === 'snooze') {
                 handleSnoozeTask(targetTask.id, parsed.minutes || 10);
@@ -4906,7 +5665,10 @@
         activeTelegramPopup,
         handleConfirmTaskReceipt,
         handleCompleteTaskFromWhatsApp,
+        handleRolloverToTomorrow,
         handleAddObservationFromWhatsApp,
+        handleSendDailySummaryWhatsApp,
+        handleCreateTaskFromWhatsApp,
       ]);
 
       const handleSnoozeTask = useCallback(
@@ -5091,37 +5853,128 @@
         return () => clearInterval(interval);
       }, [state.settings.telegramBotToken, state.settings.telegramChatId, state.tasks, handleConfirmTaskReceipt, handleSnoozeTask, handleCancelAlert, showToast]);
 
-      // Operações CRUD de Tarefas
+      // Operações CRUD de Tarefas (com Geração Automática de Repetições na Agenda e Edição Total)
       const handleSaveTask = (taskData) => {
+        const isRecurring = taskData.recurrence && taskData.recurrence !== 'none';
+        const recDates = isRecurring
+          ? generateRecurringTaskDates(
+              taskData.date,
+              taskData.recurrence,
+              taskData.recurrenceCount || 7,
+              taskData.customWeekdays
+            )
+          : [taskData.date];
+
         setState(prev => {
           const exists = prev.tasks.some(t => t.id === taskData.id);
-          const nextTasks = exists
-            ? prev.tasks.map(t => (t.id === taskData.id ? taskData : t))
-            : [taskData, ...prev.tasks];
-          return { ...prev, tasks: nextTasks };
+          const seriesId = isRecurring ? (taskData.seriesId || 'series-' + Date.now()) : '';
+
+          if (!exists) {
+            // Cria a tarefa em TODAS as datas da recorrência escolhida!
+            const createdInstances = recDates.map((dISO, idx) => ({
+              ...taskData,
+              id: idx === 0 ? taskData.id : `${taskData.id}-rec-${idx}`,
+              date: dISO,
+              seriesId,
+              status: idx === 0 ? (taskData.status || 'pending') : 'pending',
+            }));
+            return { ...prev, tasks: [...createdInstances, ...prev.tasks] };
+          }
+
+          // Se já existe: atualiza a tarefa atual e, se marcou recorrência, garante que as demais datas existam (ou atualiza a série)
+          let updatedTasks = prev.tasks.map(t => {
+            if (t.id === taskData.id) {
+              return { ...taskData, seriesId };
+            }
+            if (taskData.applyToSeries && seriesId && t.seriesId === seriesId) {
+              return {
+                ...t,
+                title: taskData.title,
+                description: taskData.description,
+                startTime: taskData.startTime,
+                endTime: taskData.endTime,
+                category: taskData.category,
+                priority: taskData.priority,
+                location: taskData.location,
+                recurrence: taskData.recurrence,
+                recurrenceCount: taskData.recurrenceCount,
+                customWeekdays: taskData.customWeekdays,
+              };
+            }
+            return t;
+          });
+
+          // Se o usuário ativou repetição agora ao editar uma tarefa, cria as datas futuras que ainda não existiam na série
+          if (isRecurring && recDates.length > 1) {
+            const extraInstances = [];
+            recDates.forEach((dISO, idx) => {
+              if (dISO === taskData.date) return;
+              const alreadyHasOnDate = updatedTasks.some(
+                t => t.date === dISO && (t.seriesId === seriesId || t.title === taskData.title)
+              );
+              if (!alreadyHasOnDate) {
+                extraInstances.push({
+                  ...taskData,
+                  id: `${taskData.id}-rec-${Date.now()}-${idx}`,
+                  date: dISO,
+                  seriesId,
+                  status: 'pending',
+                  observations: [],
+                  lastWhatsAppReply: '',
+                });
+              }
+            });
+            if (extraInstances.length > 0) {
+              updatedTasks = [...extraInstances, ...updatedTasks];
+            }
+          }
+
+          return { ...prev, tasks: updatedTasks };
         });
+
         setTaskModalOpen(false);
         setEditingTask(null);
 
         sendGreenApiWhatsAppMessage({
           settings: state.settings,
           text:
-            `📅 *MEU CONTROLE MAX – NOVO COMPROMISSO AGENDADO!*\n\n` +
+            `📅 *MEU CONTROLE MAX – COMPROMISSO SALVO NA AGENDA!*\n\n` +
             `📌 *Atividade:* ${taskData.title}\n` +
             `📆 *Data:* ${formatDateBR(taskData.date)}\n` +
             `⏰ *Horário:* ${taskData.startTime} - ${taskData.endTime}\n` +
-            `🔔 *Automação:* Você receberá um alerta aqui no WhatsApp faltando 5 minutos para o início!`,
+            (recDates.length > 1
+              ? `🔁 *Repetição Automática:* Criadas ${recDates.length} datas na sua Agenda!\n`
+              : '') +
+            `🔔 *Automação:* Você receberá os alertas aqui no WhatsApp faltando 5m, 3m, 2m, 1m e pós-início!`,
         })
           .then(() => {
             showToast(
-              `💾 Compromisso salvo e confirmação enviada para o seu WhatsApp (${state.settings.whatsappNumber || '+55 89 98102-6502'})!`,
+              recDates.length > 1
+                ? `🔁 ${recDates.length} ocorrências de "${taskData.title}" criadas na Agenda e confirmadas no WhatsApp!`
+                : `💾 Compromisso salvo e confirmação enviada para o seu WhatsApp (${state.settings.whatsappNumber || '+55 89 98102-6502'})!`,
               'success'
             );
           })
           .catch(() => {
-            showToast('💾 Compromisso salvo e fila de alertas sincronizada!', 'success');
+            showToast(
+              recDates.length > 1
+                ? `🔁 ${recDates.length} ocorrências criadas automaticamente na Agenda!`
+                : '💾 Compromisso salvo e fila de alertas sincronizada!',
+              'success'
+            );
           });
       };
+
+      const handleQuickUpdateTask = useCallback(
+        (taskId, partialFields) => {
+          setState(prev => ({
+            ...prev,
+            tasks: prev.tasks.map(t => (t.id === taskId ? { ...t, ...partialFields } : t)),
+          }));
+          showToast('✏️ Alteração salva automaticamente!', 'info');
+        },
+        [showToast]
+      );
 
       const handleDeleteTask = (taskId) => {
         setState(prev => ({
@@ -5350,6 +6203,9 @@
                     setEditingTask(task);
                     setTaskModalOpen(true);
                   }}
+                  onQuickUpdateTask={handleQuickUpdateTask}
+                  onRolloverToTomorrow={handleRolloverToTomorrow}
+                  onSendDailySummaryWhatsApp={handleSendDailySummaryWhatsApp}
                   onToggleComplete={handleToggleComplete}
                   onSmartReschedule={handleSmartReschedule}
                   onTriggerTelegramAlert={handleTriggerTelegramAlert}
@@ -5492,6 +6348,7 @@
             userPhone={state.settings.whatsappNumber || state.settings.phone}
             onConfirm={handleConfirmTaskReceipt}
             onComplete={handleCompleteTaskFromWhatsApp}
+            onRolloverToTomorrow={handleRolloverToTomorrow}
             onSnooze={handleSnoozeTask}
             onCancelAlert={handleCancelAlert}
             onClose={() => setActiveTelegramPopup(null)}
