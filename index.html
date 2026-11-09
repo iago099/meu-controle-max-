@@ -4,10 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MEU CONTROLE MAX — Smart Reminder | Organize seu tempo. Não perca nenhum compromisso.</title>
+  <meta name="description" content="MEU CONTROLE MAX — Smart Reminder. Organize seu tempo e não perca nenhum compromisso com lembretes inteligentes no WhatsApp, SMS, Telegram e ligação automática." />
+  <meta property="og:title" content="MEU CONTROLE MAX — Smart Reminder" />
+  <meta property="og:description" content="Organize seu tempo. Não perca nenhum compromisso. Alertas em 5, 3, 2 e 1 minuto no WhatsApp com check-list inteligente." />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="pt_BR" />
+  <meta property="og:site_name" content="MEU CONTROLE MAX" />
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -16,21 +22,21 @@
         extend: {
           colors: {
             tf: {
-              lime: '#FF6B00',
-              green: '#FF8533',
-              orange: '#FF6B00',
-              peach: '#FF8533',
-              bg: '#FFF9F5',
-              card: '#FFFFFF',
-              cardHover: '#FFF2E6',
-              border: '#FED7AA',
-              text: '#18181B',
-              muted: '#64748B',
+              lime: 'var(--accent)',
+              green: 'var(--accent)',
+              orange: 'var(--accent)',
+              peach: 'var(--accent)',
+              bg: 'var(--bg)',
+              card: 'var(--surface)',
+              cardHover: 'var(--accent-soft)',
+              border: 'var(--border)',
+              text: 'var(--text)',
+              muted: 'var(--text-muted)',
             }
           },
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-            mono: ['"JetBrains Mono"', 'monospace'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['Inter', 'system-ui', 'sans-serif'],
           }
         }
       }
@@ -42,136 +48,166 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
     :root, html.light, html.dark {
-      --tf-bg: #FFF9F5;
-      --tf-card: #FFFFFF;
-      --tf-border: #FED7AA;
-      --tf-text: #18181B;
-      --tf-muted: #57534E;
+      --bg: #FAFAFA;
+      --surface: #FFFFFF;
+      --border: #E4E4E7;
+      --text: #18181B;
+      --text-muted: #52525B;
+      --accent: #C2410C;
+      --accent-bright: #EA580C;
+      --accent-soft: #FFF7ED;
+      --radius-card: 16px;
+      --shadow-soft: 0 4px 20px -2px rgba(24, 24, 27, 0.05);
+      --fs-title: clamp(1.875rem, 3.5vw, 2.75rem);
+      --fs-subtitle: 1.125rem;
+      --fs-body: 0.9375rem;
     }
-    body {
-      background-color: #FFF9F5 !important;
-      color: #18181B !important;
-      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-      overflow-x: hidden;
-    }
-    .bg-tf-bg { background-color: #FFF9F5 !important; }
-    .bg-tf-card { background-color: #FFFFFF !important; box-shadow: 0 4px 20px -4px rgba(255, 107, 0, 0.08); }
-    .text-tf-text { color: #18181B !important; }
-    .text-tf-muted { color: #57534E !important; }
-    .border-tf-border { border-color: #FED7AA !important; }
 
-    /* Converte superfícies escuras em Branco & Laranja Suave para identidade 100% Laranja e Branco */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+      background-color: var(--bg) !important;
+      color: var(--text) !important;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: var(--fs-body);
+      line-height: 1.6;
+      scroll-behavior: smooth;
+    }
+
+    /* Escalas tipográficas padronizadas (3 níveis: título, subtítulo, texto) */
+    .typo-title {
+      font-size: var(--fs-title);
+      font-weight: 700;
+      line-height: 1.18;
+      letter-spacing: -0.025em;
+      color: var(--text);
+    }
+    .typo-section-title {
+      font-size: clamp(1.5rem, 2.5vw, 2rem);
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .typo-subtitle {
+      font-size: var(--fs-subtitle);
+      font-weight: 500;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+    .typo-body {
+      font-size: var(--fs-body);
+      font-weight: 400;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    /* Cards Clean (12–16px radius, borda sutil e sombra suave, sem gradientes pesados) */
+    .clean-card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-soft);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .clean-card:hover {
+      border-color: #D4D4D8;
+      box-shadow: 0 8px 28px -4px rgba(24, 24, 27, 0.08);
+    }
+
+    /* Botão de Ação Principal com contraste WCAG AA (> 5.1:1 com branco puro) */
+    .btn-primary {
+      background-color: var(--accent);
+      color: #FFFFFF !important;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: var(--fs-body);
+      transition: background-color 0.18s ease, transform 0.18s ease;
+      border: 1px solid transparent;
+    }
+    .btn-primary:hover {
+      background-color: #9A3412;
+    }
+    .btn-secondary {
+      background-color: var(--surface);
+      color: var(--text) !important;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: var(--fs-body);
+      transition: background-color 0.18s ease, border-color 0.18s ease;
+    }
+    .btn-secondary:hover {
+      background-color: #F4F4F5;
+      border-color: #D4D4D8;
+    }
+
+    /* Foco visível acessível (WCAG AA) */
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid var(--accent) !important;
+      outline-offset: 2px !important;
+    }
+
+    /* Compatibilidade limpa com o painel interno de ferramentas */
+    .bg-tf-bg { background-color: var(--bg) !important; }
+    .bg-tf-card { background-color: var(--surface) !important; box-shadow: var(--shadow-soft); }
+    .text-tf-text { color: var(--text) !important; }
+    .text-tf-muted { color: var(--text-muted) !important; }
+    .border-tf-border { border-color: var(--border) !important; }
+
     [class*="bg-black/"],
     [class*="bg-[#121A15]"],
     [class*="bg-[#101713]"],
     [class*="bg-[#19231D]"],
-    [class*="bg-[#0B1612]"],
-    [class*="bg-[#111B21]"],
-    [class*="bg-[#1F2C34]"],
-    [class*="bg-[#202C33]"],
+    [class*="bg-[#141D18]"],
     [class*="bg-white/5"],
     [class*="bg-white/10"] {
-      background-color: #FFF7ED !important;
-      color: #18181B !important;
-      border-color: #FDBA74 !important;
+      background-color: #FAFAFA !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
     }
-    [class*="from-[#19231D]"],
-    [class*="from-[#142019]"],
-    [class*="from-[#112219]"] {
-      background: linear-gradient(135deg, #FFFFFF 0%, #FFF3E6 55%, #FFE4CC 100%) !important;
-      color: #18181B !important;
-      border-color: #FB923C !important;
-    }
-    /* Textos claros herdados de modo escuro passam para grafite/laranja escuro sobre fundo branco */
     .text-white:not(button):not(a):not(.badge-orange-white) {
-      color: #18181B !important;
+      color: var(--text) !important;
     }
-    .text-slate-300, .text-slate-200, .text-\[\#F4F8F3\], .text-\[\#AAB8AA\] {
-      color: #44403C !important;
+    .text-slate-300, .text-slate-200, .text-\[\#F4F8F3\], .text-\[\#AAB8AA\], .text-red-300\/80 {
+      color: var(--text-muted) !important;
     }
-    .text-\[\#FF6B00\], .text-\[\#FF8533\], .text-\[\#FFD09B\], .text-emerald-300, .text-lime-300 {
-      color: #EA580C !important;
+    .text-\[\#FF6B00\], .text-\[\#FF8533\], .text-\[\#FFD09B\], .text-red-400 {
+      color: var(--accent) !important;
     }
-    /* Botões principais em Laranja Vibrante com texto Branco Puro */
     button[class*="from-[#FF6B00]"],
-    button[class*="from-[#FF6B00]"],
-    button[class*="from-[#FF8533]"],
-    button[class*="from-[#FF9F43]"],
-    button[class*="bg-[#FF6B00]"],
-    button[class*="bg-[#0088CC]"],
-    a[class*="bg-[#FF6B00]"],
-    a[class*="bg-[#005C4B]"] {
-      background: linear-gradient(135deg, #FF6B00 0%, #FF8C1A 100%) !important;
+    button[class*="bg-[#FF6B00]"] {
+      background: var(--accent) !important;
       color: #FFFFFF !important;
-      border-color: #EA580C !important;
+      border-color: var(--accent) !important;
     }
 
-    /* Custom Scrollbar Laranja & Branco */
-    ::-webkit-scrollbar { width: 7px; height: 7px; }
-    ::-webkit-scrollbar-track { background: #FFF7ED; }
-    ::-webkit-scrollbar-thumb { background: #FDBA74; border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: #FF6B00; }
-
-    @keyframes pulseRing {
-      0% { transform: scale(0.92); opacity: 0.85; }
-      70% { transform: scale(1.35); opacity: 0; }
-      100% { transform: scale(1.35); opacity: 0; }
+    /* Animação discreta de entrada respeitando prefers-reduced-motion */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    .animate-pulse-ring {
-      animation: pulseRing 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    .reveal-fade {
+      animation: fadeSlideUp 0.35s ease-out both;
     }
-    @keyframes floatSlow {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-4px); }
-    }
-    .animate-float {
-      animation: floatSlow 3.2s ease-in-out infinite;
-    }
-    @keyframes popInCard {
-      0% { opacity: 0; transform: translateY(8px) scale(0.96); }
-      100% { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    .animate-pop-in {
-      animation: popInCard 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-    @keyframes wiggleEmoji {
-      0%, 100% { transform: rotate(0deg) scale(1); }
-      25% { transform: rotate(-10deg) scale(1.15); }
-      75% { transform: rotate(10deg) scale(1.15); }
-    }
-    .group:hover .emoji-wiggle,
-    .emoji-wiggle:hover {
-      display: inline-block;
-      animation: wiggleEmoji 0.55s ease-in-out;
-    }
-    .agenda-task-card {
-      animation: popInCard 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .agenda-task-card:hover {
-      transform: translateY(-3px) scale(1.015);
-      box-shadow: 0 10px 25px -5px rgba(255, 107, 0, 0.25);
-    }
-    .agenda-slot-cell {
-      transition: all 0.18s ease;
-    }
-    .agenda-slot-cell:hover {
-      background-color: #FFF0E0 !important;
-    }
-    .agenda-slot-cell .slot-add-hint {
-      opacity: 0;
-      transform: translateY(4px) scale(0.95);
-      transition: all 0.18s ease;
-    }
-    .agenda-slot-cell:hover .slot-add-hint {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-    .glass-panel {
-      background: rgba(255, 255, 255, 0.94) !important;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-color: #FED7AA !important;
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
     }
   </style>
 </head>
@@ -661,16 +697,46 @@
       return Array.from(chatIds);
     }
 
+    // Registro global de mensagens enviadas pelo próprio Bot para nunca confundir o disparo automático com a resposta do usuário
+    const SENT_BY_BOT_MESSAGE_IDS = new Set();
+    let GREEN_API_WEBHOOK_CONFIGURED = false;
+    const WA_READER_STATE = {
+      initialized: false,
+      baselineServerTimestamp: 0,
+    };
+
+    function loadPersistedProcessedWaIds() {
+      try {
+        const raw = localStorage.getItem('meu_controle_max_processed_wa_ids_v2');
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) return new Set(arr);
+        }
+      } catch (e) {}
+      return new Set();
+    }
+
+    function savePersistedProcessedWaIds(idsSet) {
+      try {
+        const arr = Array.from(idsSet).slice(-250);
+        localStorage.setItem('meu_controle_max_processed_wa_ids_v2', JSON.stringify(arr));
+      } catch (e) {}
+    }
+
     // Identifica se um texto no histórico do WhatsApp foi gerado pelo próprio sistema (para não confundir com a resposta do usuário)
-    function isAutomatedBotMessage(text) {
+    function isAutomatedBotMessage(text, idMessage) {
+      if (idMessage && SENT_BY_BOT_MESSAGE_IDS.has(idMessage)) return true;
       if (!text) return true;
       const t = String(text).trim();
       if (!t) return true;
       if (
-        t.includes('MEU CONTROLE MAX') ||
+        t.includes('*MEU CONTROLE MAX') ||
+        t.includes('MEU CONTROLE MAX –') ||
+        t.includes('MEU CONTROLE MAX -') ||
         t.includes('TASKFLOW') ||
         t.includes('RESPONDA AQUI NO WHATSAPP') ||
         t.includes('CHECK-LIST NO WHATSAPP') ||
+        t.includes('📌 *Atividade:*') ||
         t.includes('Ciclo ativo:') ||
         t.includes('Presença Confirmada às') ||
         t.includes('RESPOSTA IDENTIFICADA') ||
@@ -686,22 +752,51 @@
       return false;
     }
 
-    // Interpreta a resposta enviada pelo usuário no WhatsApp (Criar Tarefa, Resumo, Não Concluída -> Topo Amanhã, Conclusão, Confirmação, Observação, Adiamento ou Cancelamento)
+    // Extrai o texto de qualquer formato de mensagem da Green-API (texto simples, resposta citando mensagem, botão ou reação com emoji)
+    function extractGreenApiMessageText(item) {
+      if (!item) return '';
+      const msgData = item.messageData || item.body?.messageData;
+      if (msgData) {
+        const fromEnvelope =
+          msgData.textMessageData?.textMessage ||
+          msgData.extendedTextMessageData?.text ||
+          msgData.buttonsResponseMessage?.selectedButtonText ||
+          msgData.templateButtonReplyMessage?.selectedDisplayText ||
+          msgData.listResponseMessage?.title ||
+          msgData.reactionMessageData?.extendedTextMessageData?.text ||
+          '';
+        if (fromEnvelope) return String(fromEnvelope).trim();
+      }
+      const direct =
+        item.textMessage ||
+        item.extendedTextMessage?.text ||
+        item.extendedTextMessageData?.text ||
+        item.selectedButtonText ||
+        item.reactionMessageData?.extendedTextMessageData?.text ||
+        '';
+      return String(direct || '').trim();
+    }
+
+    // Interpreta qualquer resposta enviada pelo usuário em linguagem natural no WhatsApp
     function parseUserWhatsAppReply(rawText) {
       const cleaned = String(rawText || '').trim();
       if (!cleaned) return null;
 
-      // 0A. Pedido de Resumo / Agenda do Dia (ex: "resumo", "agenda", "relatorio", "relatório", "tarefas de hoje", "checklist")
-      if (/^(resumo|agenda|relat[oó]rio|tarefas|compromissos|lista|hoje|check-?list)[\s.!]*$/i.test(cleaned)) {
+      // 0A. Pedido de Resumo / Agenda do Dia (ex: "resumo", "agenda", "relatorio", "tarefas", "o que tenho hoje", "checklist")
+      if (
+        /^(resumo|agenda|relat[oó]rio|tarefas|compromissos|lista|hoje|check-?list|o\s+que\s+tenho\s+hoje|quais\s+as\s+tarefas|minha\s+agenda)[\s.!?]*$/i.test(
+          cleaned
+        )
+      ) {
         return {
           action: 'daily_summary',
           raw: cleaned,
         };
       }
 
-      // 0B. Criar nova tarefa direto pelo WhatsApp (ex: "Agendar vistoria às 14:30", "Criar reunião amanhã 10:00", "Nova: ver alimentação 09:50", "Cadastrar check-in 08:00")
+      // 0B. Criar nova tarefa direto pelo WhatsApp (ex: "Agendar vistoria às 14:30", "Criar reunião amanhã 10:00", "Lembrar de ligar 11:00")
       const createMatch = cleaned.match(
-        /^(agendar|agende|agenda|criar|crie|nova\s+tarefa|novo\s+compromisso|nova\s+atividade|nova|novo|cadastrar|cadastre|marcar|marque|me\s+lembre|lembrar)\b[\s,.:;-]+(.+)$/i
+        /^(agendar|agende|criar|crie|nova\s+tarefa|novo\s+compromisso|nova\s+atividade|nova|novo|cadastrar|cadastre|marcar|marque|me\s+lembre|lembrar)\b[\s,.:;-]+(.+)$/i
       );
       if (createMatch && createMatch[2] && createMatch[2].trim().length >= 3) {
         return {
@@ -711,19 +806,23 @@
         };
       }
 
-      // 1. Adiamento (ex: "adiar", "adiar 15", "depois")
-      const snoozeMatch = cleaned.match(/^(adiar|adia|depois|atrasar)\b(?:\s*(\d+))?(?:[\s,.:;-]*(.*))?$/i);
+      // 1. Adiamento (ex: "adiar", "adiar 15", "depois", "daqui 10 min", "mais 15 min", "espera 10")
+      const snoozeMatch =
+        cleaned.match(/^(adiar|adia|depois|atrasar|espera|aguarda)\b(?:\s*(\d+))?(?:[\s,.:;-]*(.*))?$/i) ||
+        cleaned.match(/^(?:daqui\s+a?\s*|mais\s+)(\d+)\s*(?:min|minutos?|m)\b(?:[\s,.:;-]*(.*))?$/i);
       if (snoozeMatch) {
+        const mins = Number(snoozeMatch[2] || snoozeMatch[1]) || 10;
+        const extra = (snoozeMatch[3] || snoozeMatch[2] || '').replace(/^\d+\s*(?:min|minutos?|m)?\s*/i, '').trim();
         return {
           action: 'snooze',
-          minutes: Number(snoozeMatch[2]) || 10,
-          note: (snoozeMatch[3] || '').trim(),
+          minutes: mins > 0 && mins <= 240 ? mins : 10,
+          note: extra,
           raw: cleaned,
         };
       }
 
-      // 2. Cancelamento (ex: "cancelar", "desmarcar")
-      const cancelMatch = cleaned.match(/^(cancelar|cancela|desmarcar|cancelado)\b(?:[\s,.:;-]*(.*))?$/i);
+      // 2. Cancelamento (ex: "cancelar", "desmarcar", "cancelado")
+      const cancelMatch = cleaned.match(/^(cancelar|cancela|desmarcar|cancelad[oa])\b(?:[\s,.:;-]*(.*))?$/i);
       if (cancelMatch) {
         return {
           action: 'cancel',
@@ -733,9 +832,9 @@
       }
 
       // 2.5. NÃO CONCLUÍDA -> Jogar automaticamente para o TOPO do dia seguinte (Check-list)
-      // Exemplos: "não", "nao", "n", "não concluído", "nao concluido", "ainda não", "pendente", "amanhã", "não deu tempo", "não, faltou peça"
+      // Exemplos: "não", "nao", "n", "3", "não concluído", "nao fiz", "ainda não", "pendente", "amanhã", "não deu tempo", "deixa pra amanhã", "❌"
       const notCompletedMatch = cleaned.match(
-        /^(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]|ainda\s+n[aã]o|n[aã]o\s+deu|ficou\s+pendente|pendente|amanh[aã]|jogar?\s+p(?:ara)?\s+amanh[aã]|passar?\s+p(?:ara)?\s+amanh[aã]|n[aã]o|nao|n|❌+)\b(?:[\s,.:;-]*(.*))?$/i
+        /^(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]|n[aã]o\s+foi\s+feit[oa]|n[aã]o\s+fiz|ainda\s+n[aã]o|n[aã]o\s+deu(?:\s+tempo)?|sem\s+tempo|ficou\s+pendente|pendente|deixar?\s+p(?:ara|ra)\s+amanh[aã]|fica\s+p(?:ara|ra)\s+amanh[aã]|jogar?\s+p(?:ara|ra)\s+amanh[aã]|passar?\s+p(?:ara|ra)\s+amanh[aã]|amanh[aã]|hoje\s+n[aã]o\s+d[aá]|n[aã]o|nao|nn|n|3|❌+|❎+)\b(?:[\s,.:;-]*(.*))?$/i
       );
       if (notCompletedMatch) {
         return {
@@ -744,7 +843,11 @@
           raw: cleaned,
         };
       }
-      if (/\b(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|ficou\s+pendente|deixar\s+para\s+amanh[aã])\b/i.test(cleaned)) {
+      if (
+        /\b(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|n[aã]o\s+consegui|n[aã]o\s+deu\s+tempo|n[aã]o\s+fiz|ficou\s+pendente|deixar?\s+p(?:ara|ra)\s+amanh[aã]|fica\s+p(?:ara|ra)\s+amanh[aã])\b/i.test(
+          cleaned
+        )
+      ) {
         return {
           action: 'not_completed_rollover',
           note: cleaned,
@@ -752,9 +855,9 @@
         };
       }
 
-      // 3. Conclusão da Atividade (ex: "concluido", "concluído", "concluida", "feito", "finalizado", "pronto", "terminei", "resolvido", "🏆")
+      // 3. Conclusão pura da Atividade (ex: "concluido", "concluído", "feito", "já fiz", "fiz", "finalizado", "pronto", "terminei", "resolvido", "2", "🏆")
       const pureCompleteMatch = cleaned.match(
-        /^(conclu[ií]d[oa]s?|concluir|finalizad[oa]s?|finalizar|feit[oa]s?|pront[oa]s?|terminei|terminad[oa]s?|resolvid[oa]s?|encerrad[oa]s?|executad[oa]s?|🏆+|✔️+)[\s.!]*$/i
+        /^(conclu[ií]d[oa]s?|concluir|conclu[ií]|finalizad[oa]s?|finalizar|finalizei|feit[oa]s?|j[aá]\s+fiz|fiz|j[aá]\s+foi\s+feit[oa]|pront[oa]s?|t[aá]\s+pront[oa]|j[aá]\s+t[aá]\s+pront[oa]|terminei|j[aá]\s+terminei|terminad[oa]s?|resolvid[oa]s?|resolvi|encerrad[oa]s?|executad[oa]s?|executei|realizad[oa]s?|realizei|entregue|entreguei|cumprid[oa]s?|j[aá]\s+olhei|j[aá]\s+verifiquei|verificad[oa]|2|🏆+|✔️+|☑️+)[\s.!?]*$/i
       );
       if (pureCompleteMatch) {
         return {
@@ -764,9 +867,9 @@
         };
       }
 
-      // 4. Conclusão + Observação (ex: "concluido, marmitas entregues", "feito - equipe alimentada", "finalizado tudo certo")
+      // 4. Conclusão + Observação (ex: "concluido, marmitas entregues", "feito - equipe alimentada", "já fiz tudo certo")
       const completeWithNoteMatch = cleaned.match(
-        /^(conclu[ií]d[oa]s?|concluir|finalizad[oa]s?|finalizar|feit[oa]s?|pront[oa]s?|terminei|terminad[oa]s?|resolvid[oa]s?|encerrad[oa]s?|executad[oa]s?)\b[\s,.:;-]+(.+)$/i
+        /^(conclu[ií]d[oa]s?|concluir|conclu[ií]|finalizad[oa]s?|finalizar|finalizei|feit[oa]s?|j[aá]\s+fiz|fiz|j[aá]\s+foi\s+feit[oa]|pront[oa]s?|terminei|j[aá]\s+terminei|terminad[oa]s?|resolvid[oa]s?|resolvi|encerrad[oa]s?|executad[oa]s?|executei|realizad[oa]s?|realizei|entregue|entreguei)\b[\s,.:;-]+(.+)$/i
       );
       if (completeWithNoteMatch) {
         return {
@@ -776,11 +879,15 @@
         };
       }
 
-      // 5. Frase contendo palavra de conclusão (ex: "já foi concluido", "atividade concluída", "tudo concluido")
-      if (/\b(conclu[ií]d[oa]s?|finalizad[oa]s?|já conclu[ií]|ja conclui|atividade conclu[ií]da|tarefa conclu[ií]da)\b/i.test(cleaned)) {
+      // 5. Frase natural contendo expressão de conclusão (ex: "já foi concluido", "atividade concluída", "tudo feito por aqui")
+      if (
+        /\b(conclu[ií]d[oa]s?|finalizad[oa]s?|j[aá]\s+conclu[ií]|j[aá]\s+fiz|j[aá]\s+terminei|j[aá]\s+foi\s+feit[oa]|tudo\s+feit[oa]|atividade\s+conclu[ií]da|tarefa\s+conclu[ií]da|j[aá]\s+resolvi)\b/i.test(
+          cleaned
+        )
+      ) {
         const extraNote = cleaned
           .replace(/^(já|ja|tudo|atividade|tarefa|servi[cç]o|foi|está|esta|\s)+/i, '')
-          .replace(/^(conclu[ií]d[oa]s?|finalizad[oa]s?)[\s,.:;-]*/i, '')
+          .replace(/^(conclu[ií]d[oa]s?|finalizad[oa]s?|feit[oa]s?|terminei|fiz)[\s,.:;-]*/i, '')
           .trim();
         return {
           action: 'complete',
@@ -789,9 +896,9 @@
         };
       }
 
-      // 6. Confirmação pura de recebimento (ex: "OK", "Sim", "Confirmado", "1", "Ciente", "Certo", "👍", "✅")
+      // 6. Confirmação pura de recebimento (ex: "OK", "Sim", "Confirmado", "1", "Ciente", "Certo", "Tá bom", "Tô indo", "Já vi", "👍", "✅")
       const pureConfirmMatch = cleaned.match(
-        /^(ok+|okay|sim|s|confirmo|confirmado|confirmar|ciente|certo|beleza|blz|recebido|positivo|1|👍+|✅+|👌+|🤝+)[\s.!]*$/i
+        /^(ok+|okay|okey|k+|sim|s+|confirmo|confirmad[oa]|confirmar|ciente|certo|certinho|t[aá]|t[aá]\s+bom|t[aá]\s+certo|beleza|blz|recebid[oa]|recebi|visto|vi|j[aá]\s+vi|entendi|entendido|combinado|fechado|positivo|pode\s+deixar|t[oô]\s+indo|estou\s+indo|indo|em\s+andamento|fazendo|t[oô]\s+fazendo|j[aá]\s+estou\s+fazendo|valeu|vlw|obrigad[oa]|obg|show|top|perfeito|1|👍+|✅+|👌+|🤝+|🫡+|🙌+)[\s.!?]*$/i
       );
       if (pureConfirmMatch) {
         return {
@@ -801,9 +908,9 @@
         };
       }
 
-      // 7. Confirmação seguida de observação (ex: "OK, verificar marmitas do turno B", "Confirmado - pedir água", "1 tudo certo")
+      // 7. Confirmação seguida de observação (ex: "OK, verificar marmitas do turno B", "Tá bom já estou indo", "Sim, pedir água")
       const confirmWithNoteMatch = cleaned.match(
-        /^(ok+|okay|sim|confirmo|confirmado|confirmar|ciente|certo|beleza|blz|recebido|1)\b[\s,.:;-]+(.+)$/i
+        /^(ok+|okay|okey|sim|confirmo|confirmad[oa]|confirmar|ciente|certo|certinho|t[aá]\s+bom|t[aá]\s+certo|beleza|blz|recebid[oa]|recebi|j[aá]\s+vi|entendi|t[oô]\s+indo|estou\s+indo|1)\b[\s,.:;-]+(.+)$/i
       );
       if (confirmWithNoteMatch) {
         return {
@@ -814,7 +921,7 @@
       }
 
       // 8. Prefixo explícito de observação (ex: "Obs: comprar frutas", "Nota: ligar para fornecedor")
-      const obsMatch = cleaned.match(/^(obs|observa[cç][aã]o|nota|lembrete|adicionar|add)\b[\s,.:;-]*(.+)$/i);
+      const obsMatch = cleaned.match(/^(obs|observa[cç][aã]o|nota|anota|anotar|lembrete|adicionar|add)\b[\s,.:;-]*(.+)$/i);
       if (obsMatch) {
         return {
           action: 'confirm_and_note',
@@ -823,7 +930,8 @@
         };
       }
 
-      // 9. Qualquer outra mensagem enviada pelo usuário após o alerta: confirma o recebimento e salva o texto como observação da tarefa!
+      // 9. Qualquer outra mensagem ou frase livre enviada pelo usuário no WhatsApp:
+      // Confirma o recebimento (para parar o alarme) e salva o que ele escreveu como observação na atividade!
       return {
         action: 'confirm_and_note',
         note: cleaned,
@@ -831,8 +939,26 @@
       };
     }
 
-    // Busca respostas reais do usuário no WhatsApp via Green-API (getChatHistory + receiveNotification)
-    async function pollGreenApiUserReplies({ settings, sinceTimestampSec, processedIdsSet }) {
+    // Ativa automaticamente os webhooks de mensagens recebidas e enviadas pelo celular na Green-API
+    async function ensureGreenApiWebhookSettings(baseHost, idInst, tokInst) {
+      if (GREEN_API_WEBHOOK_CONFIGURED) return;
+      GREEN_API_WEBHOOK_CONFIGURED = true;
+      try {
+        await fetch(`${baseHost}/waInstance${idInst}/setSettings/${tokInst}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            incomingWebhook: 'yes',
+            outgoingWebhook: 'yes',
+            outgoingMessageWebhook: 'yes',
+            outgoingAPIMessageWebhook: 'no',
+          }),
+        });
+      } catch (e) {}
+    }
+
+    // Busca respostas reais do usuário no WhatsApp via Green-API (100% imune a diferença de fuso/ano do relógio do PC)
+    async function pollGreenApiUserReplies({ settings, processedIdsSet, forceCheckLatest = false }) {
       const idInst = (settings?.greenApiIdInstance || '710722790234').trim();
       const tokInst = (settings?.greenApiToken || 'bc3f8075a090411296a983a516a499d80a6ec55c88f648c2bf').trim();
       if (!idInst || !tokInst) return [];
@@ -841,80 +967,163 @@
       const baseHost = (settings?.greenApiUrl || `https://${prefix}.api.greenapi.com`).trim().replace(/\/$/, '');
       const targetPhone = settings?.whatsappNumber || settings?.phone || '+5589981026502';
       const chatIds = getBrazilWhatsAppChatIds(targetPhone);
-      const detectedReplies = [];
+      const chatIdsSet = new Set(chatIds);
 
-      // 1. Consulta o histórico recente da conversa (getChatHistory) nos JIDs do usuário
+      ensureGreenApiWebhookSettings(baseHost, idInst, tokInst);
+
+      const candidateMessages = [];
+
+      // 1. Consulta o histórico recente da conversa (getChatHistory) nos JIDs do usuário (com e sem 9º dígito)
       for (const chatId of chatIds) {
         try {
           const res = await fetch(`${baseHost}/waInstance${idInst}/getChatHistory/${tokInst}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId, count: 6 }),
+            body: JSON.stringify({ chatId, count: 12 }),
           });
           if (res.ok) {
             const history = await res.json();
             if (Array.isArray(history)) {
-              for (const msg of history) {
-                if (!msg || !msg.idMessage) continue;
-                if (processedIdsSet.has(msg.idMessage)) continue;
-                if (msg.timestamp && msg.timestamp < sinceTimestampSec) continue;
-
-                const text =
-                  msg.textMessage ||
-                  msg.extendedTextMessage?.text ||
-                  msg.extendedTextMessageData?.text ||
-                  '';
-
-                if (!text || isAutomatedBotMessage(text)) {
-                  processedIdsSet.add(msg.idMessage);
-                  continue;
-                }
-
-                // Achou uma resposta real do usuário no WhatsApp!
-                processedIdsSet.add(msg.idMessage);
-                detectedReplies.push({
+              // Na 1ª execução (inicialização), se a mensagem mais recente (history[0]) for uma resposta do usuário logo após um alerta nosso e ainda não tiver sido processada, permite processá-la!
+              history.forEach((msg, idx) => {
+                if (!msg || !msg.idMessage) return;
+                const text = extractGreenApiMessageText(msg);
+                candidateMessages.push({
                   idMessage: msg.idMessage,
-                  text: String(text).trim(),
-                  timestamp: msg.timestamp || Math.floor(Date.now() / 1000),
-                  chatId,
+                  text,
+                  timestamp: Number(msg.timestamp) || 0,
+                  chatId: msg.chatId || chatId,
+                  isVeryLatestInChat: idx === 0,
+                  followedBotAlert: idx === 0 && history[1] && isAutomatedBotMessage(extractGreenApiMessageText(history[1]), history[1]?.idMessage),
                 });
-              }
+              });
             }
           }
         } catch (e) {}
       }
 
-      // 2. Também consome a fila de notificações (receiveNotification) caso haja eventos pendentes
+      // 2. Consulta lastOutgoingMessages e lastIncomingMessages (captura mensagens digitadas no próprio aparelho conectado à Green-API)
       try {
-        const notifRes = await fetch(`${baseHost}/waInstance${idInst}/receiveNotification/${tokInst}`);
-        if (notifRes.ok) {
-          const notif = await notifRes.json();
-          if (notif && notif.receiptId) {
-            const body = notif.body || {};
-            const idMsg = body.idMessage;
-            const msgData = body.messageData || {};
-            const text =
-              msgData.textMessageData?.textMessage ||
-              msgData.extendedTextMessageData?.text ||
-              '';
-
-            if (idMsg && !processedIdsSet.has(idMsg) && text && !isAutomatedBotMessage(text)) {
-              processedIdsSet.add(idMsg);
-              detectedReplies.push({
-                idMessage: idMsg,
-                text: String(text).trim(),
-                timestamp: body.timestamp || Math.floor(Date.now() / 1000),
-                chatId: body.senderData?.chatId || chatIds[0],
-              });
+        const [outRes, inRes] = await Promise.all([
+          fetch(`${baseHost}/waInstance${idInst}/lastOutgoingMessages/${tokInst}?minutes=30`).catch(() => null),
+          fetch(`${baseHost}/waInstance${idInst}/lastIncomingMessages/${tokInst}?minutes=30`).catch(() => null),
+        ]);
+        for (const r of [outRes, inRes]) {
+          if (r && r.ok) {
+            const list = await r.json();
+            if (Array.isArray(list)) {
+              for (const msg of list) {
+                if (!msg || !msg.idMessage) continue;
+                if (msg.chatId && !chatIdsSet.has(msg.chatId)) continue;
+                const text = extractGreenApiMessageText(msg);
+                candidateMessages.push({
+                  idMessage: msg.idMessage,
+                  text,
+                  timestamp: Number(msg.timestamp) || 0,
+                  chatId: msg.chatId || chatIds[0],
+                  isVeryLatestInChat: false,
+                  followedBotAlert: false,
+                });
+              }
             }
-
-            await fetch(
-              `${baseHost}/waInstance${idInst}/deleteNotification/${tokInst}/${notif.receiptId}`,
-              { method: 'DELETE' }
-            ).catch(() => {});
           }
         }
       } catch (e) {}
+
+      // 3. Drena até 5 eventos da fila receiveNotification (para não travar atrás de notificações de status)
+      for (let i = 0; i < 5; i++) {
+        try {
+          const notifRes = await fetch(`${baseHost}/waInstance${idInst}/receiveNotification/${tokInst}`);
+          if (!notifRes.ok) break;
+          const notif = await notifRes.json();
+          if (!notif || !notif.receiptId) break;
+
+          const body = notif.body || {};
+          const idMsg = body.idMessage;
+          const senderChatId = body.senderData?.chatId || body.chatId || '';
+          const text = extractGreenApiMessageText(body);
+
+          if (idMsg && text && (!senderChatId || chatIdsSet.has(senderChatId))) {
+            candidateMessages.push({
+              idMessage: idMsg,
+              text,
+              timestamp: Number(body.timestamp) || 0,
+              chatId: senderChatId || chatIds[0],
+              isVeryLatestInChat: true,
+              followedBotAlert: true,
+            });
+          }
+
+          await fetch(
+            `${baseHost}/waInstance${idInst}/deleteNotification/${tokInst}/${notif.receiptId}`,
+            { method: 'DELETE' }
+          ).catch(() => {});
+        } catch (e) {
+          break;
+        }
+      }
+
+      // Na primeira leitura após abrir a página, sincroniza o baseline usando o relógio do PRÓPRIO servidor da Green-API (nunca Date.now() local!)
+      if (!WA_READER_STATE.initialized && !forceCheckLatest) {
+        WA_READER_STATE.initialized = true;
+        let maxTs = 0;
+        for (const item of candidateMessages) {
+          if (item.timestamp > maxTs) maxTs = item.timestamp;
+          // Se a mensagem mais recente da conversa foi enviada pelo usuário logo depois de um alerta do Bot e ainda não estava salva no localStorage, deixa ela passar para ser lida!
+          if (item.isVeryLatestInChat && item.followedBotAlert && !processedIdsSet.has(item.idMessage) && !isAutomatedBotMessage(item.text, item.idMessage)) {
+            continue;
+          }
+          processedIdsSet.add(item.idMessage);
+        }
+        WA_READER_STATE.baselineServerTimestamp = maxTs;
+        savePersistedProcessedWaIds(processedIdsSet);
+      }
+
+      const detectedReplies = [];
+      const seenInThisBatch = new Set();
+
+      // Ordena do mais antigo para o mais recente para processar na ordem certa
+      candidateMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+      for (const item of candidateMessages) {
+        if (!item.idMessage || seenInThisBatch.has(item.idMessage)) continue;
+        seenInThisBatch.add(item.idMessage);
+
+        if (processedIdsSet.has(item.idMessage)) continue;
+
+        if (!item.text || isAutomatedBotMessage(item.text, item.idMessage)) {
+          processedIdsSet.add(item.idMessage);
+          continue;
+        }
+
+        // Se não for busca forçada, verifica apenas se o timestamp do servidor é >= ao baseline inicial do próprio servidor
+        if (
+          !forceCheckLatest &&
+          WA_READER_STATE.baselineServerTimestamp > 0 &&
+          item.timestamp > 0 &&
+          item.timestamp < WA_READER_STATE.baselineServerTimestamp - 10 &&
+          !item.followedBotAlert
+        ) {
+          processedIdsSet.add(item.idMessage);
+          continue;
+        }
+
+        if (item.timestamp > WA_READER_STATE.baselineServerTimestamp) {
+          WA_READER_STATE.baselineServerTimestamp = item.timestamp;
+        }
+
+        processedIdsSet.add(item.idMessage);
+        detectedReplies.push({
+          idMessage: item.idMessage,
+          text: item.text,
+          timestamp: item.timestamp,
+          chatId: item.chatId,
+        });
+      }
+
+      if (detectedReplies.length > 0) {
+        savePersistedProcessedWaIds(processedIdsSet);
+      }
 
       return detectedReplies;
     }
@@ -945,7 +1154,11 @@
           }),
         });
         if (res.ok) {
-          lastResult = await res.json();
+          const data = await res.json();
+          if (data && data.idMessage) {
+            SENT_BY_BOT_MESSAGE_IDS.add(data.idMessage);
+          }
+          lastResult = data;
         }
       }
 
@@ -2471,7 +2684,11 @@
       onRunLiveFlowSimulation,
       onScheduleAutoFiveMinDemo,
       onSelectDateInCalendar,
+      lastWhatsAppMonitorEvent,
+      onForceReadWhatsAppNow,
+      onSimulateWhatsAppReply,
     }) {
+      const [simReplyInput, setSimReplyInput] = useState('');
       const todayISO = getTodayISO();
       const todayTasks = useMemo(
         () =>
@@ -2498,7 +2715,7 @@
       const completedToday = todayTasks.filter(t => t.status === 'completed' || t.status === 'confirmed').length;
       const pendingToday = todayTasks.filter(t => ['pending', 'notified', 'in_progress'].includes(t.status)).length;
       const overdueToday = todayTasks.filter(t => t.status === 'overdue').length;
-      const productivityPct = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 100;
+      const productivityPct = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
 
       // Próximo compromisso
       const currentHM = `${String(nowTime.getHours()).padStart(2, '0')}:${String(nowTime.getMinutes()).padStart(2, '0')}`;
@@ -2539,37 +2756,35 @@
 
       return (
         <div className="space-y-6">
-          {/* Banner Superior Clean Laranja & Branco */}
-          <div className="relative overflow-hidden rounded-3xl border border-[#FDBA74] bg-white p-6 shadow-sm">
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="space-y-1.5">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-[#EA580C] text-xs font-bold">
-                  <span className="w-2 h-2 rounded-full bg-[#FF6B00] animate-ping" />
-                  <span>WHATSAPP CONECTADO (+55 89 98102-6502) • ALERTAS EM 5M, 3M, 2M, 1M E PÓS-INÍCIO</span>
+          {/* Painel Rápido do Dia */}
+          <div className="clean-card p-5 sm:p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#FFF7ED] border border-orange-200 text-[#C2410C] text-xs font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-[#EA580C]" />
+                  <span>WhatsApp ativo ({settings.whatsappNumber || '+55 89 98102-6502'})</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-tf-text">
-                  {greetingPrefix} Vamos organizar seu dia?
-                </h1>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-tf-text">
+                  {greetingPrefix.replace(/[^\w\s!áéíóúãõâêôçÁÉÍÓÚÃÕÂÊÔÇ]/g, '').trim()} Sua agenda de hoje
+                </h2>
                 <p className="text-xs sm:text-sm text-tf-muted capitalize">
-                  📅 {formattedLongDate} • ⏰ <span className="font-mono font-extrabold text-[#EA580C]">{formattedClock}</span>
+                  {formattedLongDate} • <span className="font-semibold text-[#C2410C]">{formattedClock}</span>
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => onOpenNewTask()}
-                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-[#FF8C1A] text-white font-extrabold text-xs sm:text-sm shadow-md hover:brightness-105 transition flex items-center gap-1.5 badge-orange-white"
+                  className="btn-primary px-4 py-2.5 text-xs sm:text-sm flex items-center gap-1.5"
                 >
-                  <span>➕</span>
-                  <span>Novo Compromisso</span>
+                  <span>+ Novo Compromisso</span>
                 </button>
                 {onSendDailySummaryWhatsApp && (
                   <button
                     onClick={() => onSendDailySummaryWhatsApp(todayISO)}
-                    className="px-3.5 py-2.5 rounded-2xl bg-[#FFF7ED] hover:bg-orange-100 text-[#EA580C] border-2 border-[#FF6B00] font-extrabold text-xs transition flex items-center gap-1.5 shadow-sm"
-                    title="Envia a lista completa de hoje com status e observações para o seu WhatsApp"
+                    className="btn-secondary px-3.5 py-2.5 text-xs flex items-center gap-1.5"
+                    title="Envia a lista completa de hoje para o seu WhatsApp"
                   >
-                    <span>📲</span>
                     <span>Resumo no WhatsApp</span>
                   </button>
                 )}
@@ -2577,139 +2792,155 @@
                   onClick={() => {
                     const txt = buildDailySummaryReportText(tasks, todayISO);
                     navigator.clipboard?.writeText(txt);
-                    alert('📋 Relatório do dia copiado! Agora é só colar no grupo da equipe no WhatsApp.');
+                    alert('Relatório do dia copiado para a área de transferência.');
                   }}
-                  className="px-3.5 py-2.5 rounded-2xl bg-white hover:bg-orange-50 text-[#EA580C] border border-[#FDBA74] font-extrabold text-xs transition flex items-center gap-1.5"
-                  title="Copiar relatório formatado para colar no grupo da equipe"
+                  className="btn-secondary px-3.5 py-2.5 text-xs flex items-center gap-1.5"
                 >
-                  <span>📋</span>
-                  <span>Copiar p/ Equipe</span>
+                  <span>Copiar Resumo</span>
                 </button>
                 <button
                   onClick={() => openPrintableDailyReport(tasks, todayISO, settings.fullName)}
-                  className="px-3.5 py-2.5 rounded-2xl bg-white hover:bg-orange-50 text-[#EA580C] border border-[#FDBA74] font-extrabold text-xs transition flex items-center gap-1.5"
-                  title="Gerar Relatório em PDF / Impressão com todas as atividades e observações"
+                  className="btn-secondary px-3.5 py-2.5 text-xs flex items-center gap-1.5"
                 >
-                  <span>🖨️</span>
-                  <span>Gerar PDF</span>
+                  <span>Exportar PDF</span>
                 </button>
               </div>
             </div>
-            <div className="mt-3 pt-2.5 border-t border-orange-100 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#7C2D12]">
-              <span>
-                💡 <strong>Comandos no seu WhatsApp (+55 89 98102-6502):</strong> envie <strong>"Agendar [tarefa] às [hora]"</strong> para criar sozinho, <strong>"OK"</strong> para confirmar, <strong>"CONCLUIDO"</strong> para concluir ou <strong>"RESUMO"</strong> para receber a lista do dia!
-              </span>
+
+            <div className="mt-4 pt-4 border-t border-tf-border flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="text-xs text-tf-muted">
+                <strong className="text-tf-text">Leitura WhatsApp (2s):</strong>{' '}
+                {lastWhatsAppMonitorEvent ? (
+                  <span className="text-[#C2410C] font-medium">
+                    Às {lastWhatsAppMonitorEvent.time}: "{lastWhatsAppMonitorEvent.text}" ({lastWhatsAppMonitorEvent.actionLabel})
+                  </span>
+                ) : (
+                  <span>Responda OK, CONCLUIDO ou NAO no seu WhatsApp.</span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                {onForceReadWhatsAppNow && (
+                  <button
+                    onClick={onForceReadWhatsAppNow}
+                    className="btn-secondary px-3 py-1.5 text-xs"
+                  >
+                    Sincronizar WhatsApp
+                  </button>
+                )}
+                {onSimulateWhatsAppReply && (
+                  <form
+                    onSubmit={e => {
+                      e.preventDefault();
+                      if (!simReplyInput.trim()) return;
+                      onSimulateWhatsAppReply(simReplyInput.trim());
+                      setSimReplyInput('');
+                    }}
+                    className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-0"
+                  >
+                    <input
+                      type="text"
+                      value={simReplyInput}
+                      onChange={e => setSimReplyInput(e.target.value)}
+                      placeholder="Simular resposta (ex: concluido)"
+                      className="rounded-xl bg-white border border-tf-border px-3 py-1.5 text-xs text-tf-text flex-1 sm:w-48 min-w-0"
+                    />
+                    <button
+                      type="submit"
+                      className="btn-primary px-3 py-1.5 text-xs shrink-0"
+                    >
+                      Testar
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* 6 Cards Animados de Indicadores de Desempenho */}
+          {/* Indicadores do Dia (Clean) */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5">
-            <div className="rounded-2xl border border-tf-border bg-tf-card p-4 hover:border-[#FF6B00]/50 transition group">
-              <div className="flex items-center justify-between text-xs text-tf-muted">
-                <span>Total Hoje</span>
-                <span className="text-base group-hover:scale-110 transition">📋</span>
-              </div>
-              <div className="mt-2 text-2xl font-extrabold text-tf-text">{totalToday}</div>
-              <div className="mt-1 text-[11px] text-tf-muted">Compromissos do dia</div>
+            <div className="clean-card p-4">
+              <div className="text-xs font-medium text-tf-muted">Total Hoje</div>
+              <div className="mt-1.5 text-2xl font-bold text-tf-text">{totalToday}</div>
+              <div className="mt-0.5 text-[11px] text-tf-muted">Compromissos</div>
             </div>
 
-            <div className="rounded-2xl border border-tf-border bg-tf-card p-4 hover:border-[#FF8533]/50 transition group">
-              <div className="flex items-center justify-between text-xs text-tf-muted">
-                <span>Concluídas / Confirm.</span>
-                <span className="text-base group-hover:scale-110 transition">✅</span>
-              </div>
-              <div className="mt-2 text-2xl font-extrabold text-[#FF6B00]">{completedToday}</div>
-              <div className="mt-1 text-[11px] text-[#FF8533]">Confirmadas no prazo</div>
+            <div className="clean-card p-4">
+              <div className="text-xs font-medium text-tf-muted">Concluídas / Confirm.</div>
+              <div className="mt-1.5 text-2xl font-bold text-[#C2410C]">{completedToday}</div>
+              <div className="mt-0.5 text-[11px] text-tf-muted">No prazo</div>
             </div>
 
-            <div className="rounded-2xl border border-tf-border bg-tf-card p-4 hover:border-[#FF9F43]/50 transition group">
-              <div className="flex items-center justify-between text-xs text-tf-muted">
-                <span>Pendentes</span>
-                <span className="text-base group-hover:scale-110 transition">⏳</span>
-              </div>
-              <div className="mt-2 text-2xl font-extrabold text-[#FFD09B]">{pendingToday}</div>
-              <div className="mt-1 text-[11px] text-tf-muted">Monitoradas pelo Bot</div>
+            <div className="clean-card p-4">
+              <div className="text-xs font-medium text-tf-muted">Pendentes</div>
+              <div className="mt-1.5 text-2xl font-bold text-tf-text">{pendingToday}</div>
+              <div className="mt-0.5 text-[11px] text-tf-muted">Aguardando</div>
             </div>
 
-            <div className="rounded-2xl border border-tf-border bg-tf-card p-4 hover:border-red-500/50 transition group">
-              <div className="flex items-center justify-between text-xs text-tf-muted">
-                <span>Atrasadas</span>
-                <span className="text-base group-hover:scale-110 transition">🚨</span>
-              </div>
-              <div className="mt-2 text-2xl font-extrabold text-red-400">{overdueToday}</div>
-              <div className="mt-1 text-[11px] text-red-300/80">Cobrança prioritária</div>
+            <div className="clean-card p-4">
+              <div className="text-xs font-medium text-tf-muted">Atrasadas</div>
+              <div className="mt-1.5 text-2xl font-bold text-[#C2410C]">{overdueToday}</div>
+              <div className="mt-0.5 text-[11px] text-tf-muted">Prioritárias</div>
             </div>
 
-            <div className="rounded-2xl border border-tf-border bg-tf-card p-4 hover:border-[#FF6B00]/50 transition group">
-              <div className="flex items-center justify-between text-xs text-tf-muted">
-                <span>Produtividade</span>
-                <span className="text-base group-hover:scale-110 transition">📈</span>
-              </div>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-[#FF6B00]">{productivityPct}%</span>
-              </div>
-              <div className="mt-2 h-1.5 w-full rounded-full bg-black/40 overflow-hidden">
+            <div className="clean-card p-4">
+              <div className="text-xs font-medium text-tf-muted">Produtividade</div>
+              <div className="mt-1.5 text-2xl font-bold text-[#C2410C]">{productivityPct}%</div>
+              <div className="mt-2 h-1.5 w-full rounded-full bg-zinc-200 overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#FF8533] to-[#FF9F43] transition-all duration-500"
+                  className="h-full rounded-full bg-[#C2410C] transition-all duration-500"
                   style={{ width: `${productivityPct}%` }}
                 />
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[#FF9F43]/40 bg-gradient-to-br from-[#19231D] to-[#272118] p-4 shadow">
-              <div className="flex items-center justify-between text-xs text-[#FFD09B]">
-                <span className="font-bold">Próximo Compromisso</span>
-                <span>⏰</span>
-              </div>
+            <div className="clean-card p-4">
+              <div className="text-xs font-medium text-tf-muted">Próximo Compromisso</div>
               {nextAppointment ? (
                 <>
-                  <div className="mt-1.5 text-sm font-extrabold text-tf-text truncate" title={nextAppointment.title}>
+                  <div className="mt-1.5 text-sm font-bold text-tf-text truncate" title={nextAppointment.title}>
                     {nextAppointment.title}
                   </div>
                   <div className="mt-1 flex items-center justify-between text-[11px]">
-                    <span className="font-mono font-bold text-[#FF9F43]">{nextAppointment.startTime}</span>
+                    <span className="font-semibold text-[#C2410C]">{nextAppointment.startTime}</span>
                     <button
                       onClick={() => onTriggerVoiceCall(nextAppointment)}
-                      className="underline text-[#FF6B00] hover:text-white font-semibold"
+                      className="underline text-[#C2410C] hover:text-[#9A3412] font-semibold"
                     >
-                      Testar Ligação 📞
+                      Ligar agora
                     </button>
                   </div>
                 </>
               ) : (
-                <div className="mt-2 text-xs text-tf-muted">Livre por hoje! 🎉</div>
+                <div className="mt-2 text-xs text-tf-muted">Livre por hoje</div>
               )}
             </div>
           </div>
 
-          {/* Grid Principal: 🔥 FOCO DE HOJE (Esquerda 2 cols) + Calendário Resumido & Linha do Tempo (Direita 1 col) */}
+          {/* Grid Principal: Check-list de Hoje (Esquerda 2 cols) + Próximas Atividades (Direita 1 col) */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            {/* 🔥 FOCO DE HOJE • CHECK-LIST DE EXECUÇÃO */}
-            <div className="xl:col-span-2 rounded-3xl border border-tf-border bg-tf-card p-5 sm:p-6 space-y-4">
+            {/* CHECK-LIST DE HOJE */}
+            <div className="xl:col-span-2 clean-card p-5 sm:p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-2xl">☑️</span>
-                  <div>
-                    <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-tf-text">
-                      CHECK-LIST DE HOJE (FOCO & EXECUÇÃO)
-                    </h2>
-                    <p className="text-xs text-tf-muted">
-                      Responda <strong>CONCLUIDO</strong> ou <strong>NAO</strong> no WhatsApp • Se não concluir, volta automaticamente para o <strong>TOPO de amanhã</strong>!
-                    </p>
-                  </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold tracking-tight text-tf-text">
+                    Check-list de Hoje
+                  </h2>
+                  <p className="text-xs text-tf-muted">
+                    Atividades não concluídas voltam automaticamente para o topo de amanhã.
+                  </p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setFocusModeOnly(!focusModeOnly)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition ${
                       focusModeOnly
-                        ? 'bg-[#FF9F43] text-[#101713] border-[#FF9F43] shadow'
-                        : 'bg-white/5 text-tf-muted border-tf-border hover:text-white'
+                        ? 'bg-[#C2410C] text-white border-[#C2410C]'
+                        : 'bg-white text-tf-muted border-tf-border hover:text-tf-text'
                     }`}
                   >
-                    <span>🎯</span>
-                    <span>{focusModeOnly ? 'Modo Foco Ativo (Só Prioridades)' : 'Ativar Modo Foco'}</span>
+                    <span>{focusModeOnly ? 'Modo Foco Ativo' : 'Filtrar Prioridades'}</span>
                   </button>
                 </div>
               </div>
@@ -2959,103 +3190,65 @@
               )}
             </div>
 
-            {/* Coluna Direita: Fluxo de Cobrança Ao Vivo + Linha do Tempo das Próximas Atividades */}
-            <div className="space-y-5">
-              {/* Card do Diferencial: Fluxo 08:30 -> 09:00 -> 09:05 -> 09:10 -> 09:11 */}
-              <div className="rounded-3xl border border-[#FF6B00]/30 bg-gradient-to-b from-[#19231D] to-[#121A15] p-5 space-y-3.5 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-[#FF6B00]">
-                    ⚡ Como a Cobrança Funciona
-                  </span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-[#FF9F43]/20 text-[#FFD09B] font-bold">
-                    Persistente
-                  </span>
-                </div>
-
-                <div className="space-y-2.5 text-xs">
-                  <div className="flex items-start gap-2.5">
-                    <span className="font-mono font-bold text-[#FF6B00] bg-black/40 px-2 py-0.5 rounded">08:30</span>
-                    <div>
-                      <div className="font-bold text-tf-text">1. Compromisso Criado</div>
-                      <div className="text-[11px] text-tf-muted">Reunião de programação das equipes</div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <span className="font-mono font-bold text-sky-300 bg-black/40 px-2 py-0.5 rounded">09:00</span>
-                    <div>
-                      <div className="font-bold text-tf-text">2. Telegram Dispara</div>
-                      <div className="text-[11px] text-tf-muted">Envia lembrete com botões ✅ Confirmar / ⏰ Adiar</div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <span className="font-mono font-bold text-[#FFD09B] bg-black/40 px-2 py-0.5 rounded">09:05</span>
-                    <div>
-                      <div className="font-bold text-tf-text">3. Sem Resposta</div>
-                      <div className="text-[11px] text-tf-muted">Sistema envia 2º alerta urgente no Telegram</div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <span className="font-mono font-bold text-[#FF9F43] bg-black/40 px-2 py-0.5 rounded">09:10</span>
-                    <div>
-                      <div className="font-bold text-[#FFD09B]">4. Ligação Automática 📞</div>
-                      <div className="text-[11px] text-tf-muted">O telefone toca e narra o compromisso em voz pt-BR</div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <span className="font-mono font-bold text-[#FF8533] bg-black/40 px-2 py-0.5 rounded">09:11</span>
-                    <div>
-                      <div className="font-bold text-[#FF6B00]">5. Confirmação por Tecla 1 ✅</div>
-                      <div className="text-[11px] text-tf-muted">Usuário digita 1. Ligação encerrada e alertas pausados!</div>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => onRunLiveFlowSimulation(nextAppointment || todayTasks[0])}
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FF6B00] to-[#FF9F43] text-[#101713] font-extrabold text-xs shadow hover:brightness-105 transition"
-                >
-                  ▶️ Testar Esse Fluxo Completo Agora
-                </button>
-              </div>
-
+            {/* Coluna Direita: Próximas Atividades + Ações Rápidas */}
+            <div className="space-y-4">
               {/* Linha do Tempo das Próximas Atividades */}
-              <div className="rounded-3xl border border-tf-border bg-tf-card p-5 space-y-3.5">
+              <div className="clean-card p-5 space-y-3.5">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-extrabold text-tf-text">⏳ Linha do Tempo (Próximas)</h3>
+                  <h3 className="text-sm font-bold text-[#18181B]">Próximas Atividades</h3>
                   <button
                     onClick={() => onSelectDateInCalendar(todayISO)}
-                    className="text-xs font-bold text-[#FF6B00] hover:underline"
+                    className="text-xs font-semibold text-[#C2410C] hover:underline"
                   >
-                    Ver Agenda Completa →
+                    Ver Agenda →
                   </button>
                 </div>
 
-                <div className="relative pl-4 border-l-2 border-[#26352C] space-y-3">
-                  {tasks.slice(0, 5).map(t => {
+                <div className="relative pl-4 border-l-2 border-[#E4E4E7] space-y-2.5">
+                  {tasks.slice(0, 6).map(t => {
                     const cat = getCategoryObj(t.category);
                     return (
                       <div
                         key={t.id}
                         onClick={() => onEditTask(t)}
-                        className="relative group cursor-pointer rounded-xl p-2.5 bg-black/25 hover:bg-black/40 border border-white/5 transition"
+                        className="relative group cursor-pointer rounded-xl p-2.5 bg-[#FAFAFA] hover:bg-[#FFF7ED] border border-[#E4E4E7] transition"
                       >
                         <span
                           className="absolute -left-[21px] top-3.5 w-2.5 h-2.5 rounded-full"
                           style={{ backgroundColor: cat.color }}
                         />
-                        <div className="flex items-center justify-between text-[11px] text-tf-muted">
-                          <span className="font-mono font-bold text-[#FF6B00]">
+                        <div className="flex items-center justify-between text-[11px] text-[#52525B]">
+                          <span className="font-mono font-bold text-[#C2410C]">
                             {formatDateBR(t.date)} • {t.startTime}
                           </span>
-                          <span>{cat.emoji} {cat.name}</span>
+                          <span>{cat.name}</span>
                         </div>
-                        <div className="text-xs font-bold text-tf-text group-hover:text-[#FF6B00] truncate mt-0.5">
+                        <div className="text-xs font-semibold text-[#18181B] group-hover:text-[#C2410C] truncate mt-0.5">
                           {t.title}
                         </div>
                       </div>
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Ações Rápidas de Disparo */}
+              <div className="clean-card p-5 space-y-2.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#52525B]">
+                  Disparo Rápido
+                </h3>
+                <button
+                  onClick={() => onTriggerTelegramAlert(nextAppointment || todayTasks[0], 'ALERTA WHATSAPP MANUAL', 'whatsapp')}
+                  className="w-full btn-primary py-2.5 px-4 text-xs"
+                >
+                  Enviar Alerta no WhatsApp Agora
+                </button>
+                <button
+                  onClick={() => onTriggerVoiceCall(nextAppointment || todayTasks[0])}
+                  className="w-full btn-secondary py-2.5 px-4 text-xs"
+                >
+                  Testar Ligação de Voz
+                </button>
               </div>
             </div>
           </div>
@@ -4103,147 +4296,265 @@
     // 14. SEÇÕES 8 E 13: 📊 RELATÓRIOS, PRODUTIVIDADE, METAS E CONQUISTAS
     // =========================================================================
     function ReportsProductivityView({ tasks, callLogs, settings }) {
-      const total = tasks.length;
-      const completedOrConfirmed = tasks.filter(
+      const todayISO = getTodayISO();
+      const [ty, tm, td] = todayISO.split('-').map(Number);
+      const todayObj = new Date(ty, tm - 1, td);
+      const currentDow = todayObj.getDay(); // 0 = Dom .. 6 = Sáb
+      const mondayOffset = currentDow === 0 ? -6 : 1 - currentDow;
+      const weekStartISO = addDaysISO(todayISO, mondayOffset);
+      const weekEndISO = addDaysISO(weekStartISO, 6);
+      const currentMonthPrefix = todayISO.slice(0, 7); // YYYY-MM
+
+      const activeTasks = (tasks || []).filter(t => t.status !== 'cancelled');
+      const total = activeTasks.length;
+
+      // Tarefas Concluídas (🏆) vs Confirmadas (✅) vs Pendentes (⏳)
+      const strictlyCompletedCount = activeTasks.filter(t => t.status === 'completed').length;
+      const confirmedOrCompletedCount = activeTasks.filter(
         t => t.status === 'completed' || t.status === 'confirmed'
       ).length;
-      const overdueCount = tasks.filter(t => t.status === 'overdue').length;
-      const rescheduledCount = tasks.reduce((acc, t) => acc + (t.rescheduledCount || 0), 0) + 2;
+      const pendingCount = activeTasks.filter(
+        t => !['completed', 'confirmed', 'cancelled'].includes(t.status)
+      ).length;
+      const overdueCount = activeTasks.filter(t => t.status === 'overdue').length;
+
+      // Tarefas de Hoje, da Semana e do Mês (100% REAIS!)
+      const todayTasks = activeTasks.filter(t => t.date === todayISO);
+      const doneTodayCount = todayTasks.filter(t => t.status === 'completed').length;
+      const confirmedTodayCount = todayTasks.filter(t => t.status === 'confirmed').length;
+
+      const weekTasks = activeTasks.filter(t => t.date >= weekStartISO && t.date <= weekEndISO);
+      const doneWeekCount = weekTasks.filter(t => t.status === 'completed').length;
+
+      const monthTasks = activeTasks.filter(t => (t.date || '').startsWith(currentMonthPrefix));
+      const doneMonthCount = monthTasks.filter(t => t.status === 'completed').length;
+
+      // Reagendadas ou roladas para o dia seguinte (100% real, sem números fictícios)
+      const rescheduledCount = (tasks || []).filter(
+        t => (t.rescheduledCount && t.rescheduledCount > 0) || Boolean(t.rolledOverFrom)
+      ).length;
+
+      // Confirmadas / Concluídas via WhatsApp
+      const whatsappResolvedCount = activeTasks.filter(
+        t => t.confirmedVia === 'whatsapp' || t.completedVia === 'whatsapp' || Boolean(t.lastWhatsAppReply)
+      ).length;
+
       const totalEstimatedHours = (
-        tasks.reduce((acc, t) => acc + (Number(t.estimatedMinutes) || 45), 0) / 60
+        activeTasks.reduce((acc, t) => acc + (Number(t.estimatedMinutes) || 60), 0) / 60
       ).toFixed(1);
 
-      const commitmentIndex = total > 0 ? Math.round(((total - overdueCount) / total) * 100) : 96;
-      const completionRate = total > 0 ? Math.round((completedOrConfirmed / total) * 100) : 85;
+      // Índices 100% reais e coerentes entre si:
+      // - Índice de Comprometimento: % de tarefas Confirmadas (OK) ou Concluídas (CONCLUIDO)
+      // - Taxa de Conclusão: % de tarefas efetivamente Concluídas (CONCLUIDO / Check marcado)
+      const commitmentIndex = total > 0 ? Math.round((confirmedOrCompletedCount / total) * 100) : 0;
+      const completionRate = total > 0 ? Math.round((strictlyCompletedCount / total) * 100) : 0;
 
-      const weeklySeries = [
-        { day: 'Seg', current: 88, previous: 74, count: 6 },
-        { day: 'Ter', current: 94, previous: 80, count: 7 },
-        { day: 'Qua', current: 82, previous: 78, count: 5 },
-        { day: 'Qui', current: 91, previous: 85, count: 8 },
-        { day: 'Sex', current: 96, previous: 82, count: 7 },
-        { day: 'Sáb', current: 85, previous: 70, count: 3 },
-        { day: 'Dom', current: 90, previous: 75, count: 2 },
-      ];
+      // Série real dos 7 dias da semana atual (Seg a Dom)
+      const weekDayNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+      const weeklySeries = weekDayNames.map((label, idx) => {
+        const dayISO = addDaysISO(weekStartISO, idx);
+        const dayList = activeTasks.filter(t => t.date === dayISO);
+        const dayTotal = dayList.length;
+        const dayCompleted = dayList.filter(t => t.status === 'completed').length;
+        const dayCommitted = dayList.filter(t => t.status === 'completed' || t.status === 'confirmed').length;
+        const completedPct = dayTotal > 0 ? Math.round((dayCompleted / dayTotal) * 100) : 0;
+        const committedPct = dayTotal > 0 ? Math.round((dayCommitted / dayTotal) * 100) : 0;
+        return {
+          day: label,
+          dateBR: formatDateBR(dayISO).slice(0, 5),
+          isToday: dayISO === todayISO,
+          total: dayTotal,
+          completed: dayCompleted,
+          committed: dayCommitted,
+          completedPct,
+          committedPct,
+        };
+      });
 
       const achievements = [
-        { icon: '🏆', title: 'Compromisso Inabalável', desc: '100% das ligações automáticas confirmadas na 1ª tentativa', unlocked: true },
-        { icon: '⚡', title: 'Resposta Relâmpago no Telegram', desc: 'Confirmou 5 lembretes em menos de 1 minuto', unlocked: true },
-        { icon: '🔥', title: 'Mestre do Foco Semanal', desc: 'Bateu a meta de tarefas prioritárias por 3 semanas seguidas', unlocked: true },
-        { icon: '🎯', title: 'Zero Atrasos no Mês', desc: 'Concluir todas as tarefas urgentes sem reagendamento', unlocked: overdueCount === 0 },
+        {
+          icon: '📲',
+          title: 'Conectado no WhatsApp',
+          desc: whatsappResolvedCount > 0
+            ? `${whatsappResolvedCount} atividade(s) respondida(s) pelo WhatsApp`
+            : 'Responda OK ou CONCLUIDO no WhatsApp para desbloquear',
+          unlocked: whatsappResolvedCount > 0,
+        },
+        {
+          icon: '🏆',
+          title: 'Check-list em Ação',
+          desc: strictlyCompletedCount > 0
+            ? `${strictlyCompletedCount} de ${total} atividade(s) concluída(s) no total`
+            : 'Conclua sua 1ª atividade para desbloquear',
+          unlocked: strictlyCompletedCount > 0,
+        },
+        {
+          icon: '🔥',
+          title: 'Meta do Dia 100%',
+          desc: todayTasks.length > 0 && doneTodayCount === todayTasks.length
+            ? `Todas as ${todayTasks.length} atividades de hoje foram concluídas!`
+            : `Concluídas hoje: ${doneTodayCount} de ${todayTasks.length} atividade(s)`,
+          unlocked: todayTasks.length > 0 && doneTodayCount === todayTasks.length,
+        },
+        {
+          icon: '🎯',
+          title: 'Zero Atrasos',
+          desc: total > 0 && overdueCount === 0
+            ? 'Nenhuma atividade atrasada na sua agenda!'
+            : total === 0
+            ? 'Cadastre atividades na agenda para acompanhar'
+            : `${overdueCount} atividade(s) atrasada(s)`,
+          unlocked: total > 0 && overdueCount === 0,
+        },
       ];
 
       return (
         <div className="space-y-6">
-          {/* Card Principal: ÍNDICE DE COMPROMETIMENTO */}
-          <div className="rounded-3xl border border-[#FF6B00]/40 bg-gradient-to-r from-[#19231D] via-[#17261C] to-[#262118] p-6 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6">
+          {/* Card Principal: ÍNDICE DE COMPROMETIMENTO & TAXA DE CONCLUSÃO REAIS */}
+          <div className="rounded-3xl border-2 border-[#FDBA74] bg-[#FFF7ED] p-6 shadow-md flex flex-col lg:flex-row items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF6B00]/15 text-[#FF6B00] text-xs font-extrabold">
-                <span>📊 INDICADOR OFICIAL DE PONTUALIDADE</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100 text-[#EA580C] text-xs font-extrabold border border-orange-200">
+                <span>📊 INDICADOR REAL DE COMPROMETIMENTO & CHECK-LIST</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-tf-text">
                 ÍNDICE DE COMPROMETIMENTO: <span className="text-[#FF6B00]">{commitmentIndex}%</span>
               </h2>
               <p className="text-xs sm:text-sm text-tf-muted">
-                Representa a porcentagem de compromissos e tarefas confirmados e concluídos dentro do prazo graças ao motor de alertas Telegram + Ligação Automática.
+                Calculado em tempo real sobre suas <strong>{total} atividade(s)</strong> cadastradas: <strong>{strictlyCompletedCount} concluída(s) 🏆</strong>, <strong>{confirmedOrCompletedCount - strictlyCompletedCount} confirmada(s) ✅</strong> e <strong>{pendingCount} pendente(s) ⏳</strong>.
               </p>
             </div>
 
-            <div className="flex items-center gap-6">
-              <div className="text-center px-5 py-4 rounded-2xl bg-black/35 border border-white/10">
-                <div className="text-3xl font-extrabold text-[#FF6B00]">{completionRate}%</div>
-                <div className="text-[11px] text-tf-muted mt-1">Taxa de Conclusão</div>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="text-center px-5 py-4 rounded-2xl bg-white border-2 border-[#FDBA74] shadow-sm">
+                <div className="text-3xl font-extrabold text-[#EA580C]">{completionRate}%</div>
+                <div className="text-[11px] font-bold text-tf-muted mt-1">
+                  Taxa de Conclusão ({strictlyCompletedCount}/{total})
+                </div>
               </div>
-              <div className="text-center px-5 py-4 rounded-2xl bg-black/35 border border-white/10">
+              <div className="text-center px-5 py-4 rounded-2xl bg-white border-2 border-[#FDBA74] shadow-sm">
+                <div className="text-3xl font-extrabold text-[#FF6B00]">{commitmentIndex}%</div>
+                <div className="text-[11px] font-bold text-tf-muted mt-1">
+                  Confirmadas + Concluídas ({confirmedOrCompletedCount}/{total})
+                </div>
+              </div>
+              <div className="text-center px-5 py-4 rounded-2xl bg-white border-2 border-[#FDBA74] shadow-sm">
                 <div className="text-3xl font-extrabold text-[#FF9F43]">{totalEstimatedHours}h</div>
-                <div className="text-[11px] text-tf-muted mt-1">Tempo Estimado</div>
+                <div className="text-[11px] font-bold text-tf-muted mt-1">
+                  Tempo Total ({total} ativ.)
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Métricas por Período e Indicadores Operacionais */}
+          {/* 6 KPIs 100% REAIS (Sem números fictícios!) */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
             <div className="rounded-2xl border border-tf-border bg-tf-card p-4">
-              <div className="text-xs text-tf-muted">Realizadas / Dia</div>
-              <div className="text-2xl font-extrabold text-tf-text mt-1">5</div>
-              <div className="text-[11px] text-[#FF6B00] mt-1">+18% vs ontem</div>
+              <div className="text-xs font-bold text-tf-muted">Concluídas / Hoje</div>
+              <div className="text-2xl font-extrabold text-[#EA580C] mt-1">
+                {doneTodayCount} <span className="text-sm text-tf-muted font-bold">/ {todayTasks.length}</span>
+              </div>
+              <div className="text-[11px] text-[#FF6B00] font-semibold mt-1">
+                {confirmedTodayCount > 0 ? `+ ${confirmedTodayCount} confirmada(s) c/ OK` : `Faltam ${Math.max(0, todayTasks.length - doneTodayCount)} hoje`}
+              </div>
             </div>
+
             <div className="rounded-2xl border border-tf-border bg-tf-card p-4">
-              <div className="text-xs text-tf-muted">Realizadas / Semana</div>
-              <div className="text-2xl font-extrabold text-tf-text mt-1">38</div>
-              <div className="text-[11px] text-[#FF6B00] mt-1">Meta: {settings.weeklyGoalTasks}</div>
+              <div className="text-xs font-bold text-tf-muted">Concluídas / Semana</div>
+              <div className="text-2xl font-extrabold text-tf-text mt-1">
+                {doneWeekCount} <span className="text-sm text-tf-muted font-bold">/ {weekTasks.length}</span>
+              </div>
+              <div className="text-[11px] text-[#FF6B00] font-semibold mt-1">
+                Programadas na semana: {weekTasks.length}
+              </div>
             </div>
+
             <div className="rounded-2xl border border-tf-border bg-tf-card p-4">
-              <div className="text-xs text-tf-muted">Realizadas / Mês</div>
-              <div className="text-2xl font-extrabold text-tf-text mt-1">142</div>
-              <div className="text-[11px] text-[#FF8533] mt-1">Consistência Alta</div>
+              <div className="text-xs font-bold text-tf-muted">Concluídas / Mês</div>
+              <div className="text-2xl font-extrabold text-tf-text mt-1">
+                {doneMonthCount} <span className="text-sm text-tf-muted font-bold">/ {monthTasks.length}</span>
+              </div>
+              <div className="text-[11px] text-[#FF8533] font-semibold mt-1">
+                Total no mês: {monthTasks.length}
+              </div>
             </div>
+
             <div className="rounded-2xl border border-tf-border bg-tf-card p-4">
-              <div className="text-xs text-tf-muted">Compromissos Perdidos</div>
-              <div className="text-2xl font-extrabold text-red-400 mt-1">{overdueCount}</div>
-              <div className="text-[11px] text-tf-muted mt-1">Reduzido em 84%</div>
+              <div className="text-xs font-bold text-tf-muted">Pendentes / Atrasadas</div>
+              <div className="text-2xl font-extrabold text-[#EA580C] mt-1">
+                {pendingCount} <span className="text-xs text-red-500 font-bold">({overdueCount} atras.)</span>
+              </div>
+              <div className="text-[11px] text-tf-muted mt-1">Aguardando conclusão</div>
             </div>
+
             <div className="rounded-2xl border border-tf-border bg-tf-card p-4">
-              <div className="text-xs text-tf-muted">Tarefas Reagendadas</div>
-              <div className="text-2xl font-extrabold text-[#FFD09B] mt-1">{rescheduledCount}</div>
-              <div className="text-[11px] text-tf-muted mt-1">Via Drag & Drop / Bot</div>
+              <div className="text-xs font-bold text-tf-muted">Reagendadas / Topo Amanhã</div>
+              <div className="text-2xl font-extrabold text-[#FF6B00] mt-1">{rescheduledCount}</div>
+              <div className="text-[11px] text-tf-muted mt-1">Adiadas ou roladas p/ amanhã</div>
             </div>
+
             <div className="rounded-2xl border border-tf-border bg-tf-card p-4">
-              <div className="text-xs text-tf-muted">Salvas por Ligação</div>
-              <div className="text-2xl font-extrabold text-[#FF9F43] mt-1">{callLogs.length}</div>
-              <div className="text-[11px] text-[#FFD09B] mt-1">Atendidas c/ DTMF 1</div>
+              <div className="text-xs font-bold text-tf-muted">Respondidas no WhatsApp</div>
+              <div className="text-2xl font-extrabold text-[#EA580C] mt-1">{whatsappResolvedCount}</div>
+              <div className="text-[11px] text-[#FF6B00] font-semibold mt-1">Confirmadas ou concluídas</div>
             </div>
           </div>
 
-          {/* Gráfico Comparativo entre Semanas + Conquistas de Produtividade */}
+          {/* Gráfico Real da Semana Atual + Conquistas Reais */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 rounded-3xl border border-tf-border bg-tf-card p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-base font-extrabold text-tf-text">
-                    📈 Comparação de Produtividade Entre Semanas
+                    📈 Desempenho Real da Semana ({formatDateBR(weekStartISO).slice(0, 5)} a {formatDateBR(weekEndISO).slice(0, 5)})
                   </h3>
                   <p className="text-xs text-tf-muted">
-                    Desempenho diário da semana atual (Verde) comparado à semana anterior (Laranja)
+                    Porcentagem real de atividades Concluídas (Laranja Escuro) e Confirmadas (Laranja Claro) em cada dia da semana
                   </p>
                 </div>
                 <div className="flex items-center gap-4 text-xs">
                   <span className="flex items-center gap-1.5 font-bold text-[#FF6B00]">
-                    <span className="w-3 h-3 rounded-sm bg-[#FF6B00]" /> Semana Atual
+                    <span className="w-3 h-3 rounded-sm bg-[#FF6B00]" /> 🏆 % Concluídas
                   </span>
                   <span className="flex items-center gap-1.5 font-bold text-[#FF9F43]">
-                    <span className="w-3 h-3 rounded-sm bg-[#FF9F43]" /> Semana Anterior
+                    <span className="w-3 h-3 rounded-sm bg-[#FF9F43]" /> ✅ % Confirmadas + Concl.
                   </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-7 gap-3 pt-4 items-end h-56 border-b border-tf-border pb-3">
                 {weeklySeries.map(item => (
-                  <div key={item.day} className="flex flex-col items-center gap-2 h-full justify-end">
-                    <div className="flex items-end gap-1.5 w-full justify-center h-40">
+                  <div key={item.day} className="flex flex-col items-center gap-1.5 h-full justify-end">
+                    <div className="text-[10px] font-bold text-[#EA580C]">
+                      {item.completed}/{item.total}
+                    </div>
+                    <div className="flex items-end gap-1.5 w-full justify-center h-36 bg-orange-50/60 rounded-xl p-1 border border-orange-100">
                       <div
-                        className="w-3.5 sm:w-5 rounded-t-lg bg-gradient-to-t from-[#FF8533] to-[#FF6B00] transition-all"
-                        style={{ height: `${item.current}%` }}
-                        title={`Semana atual: ${item.current}%`}
+                        className="w-3.5 sm:w-5 rounded-t-lg bg-gradient-to-t from-[#EA580C] to-[#FF6B00] transition-all"
+                        style={{ height: `${Math.max(item.completedPct, item.total > 0 ? 8 : 3)}%` }}
+                        title={`${item.day} (${item.dateBR}): ${item.completed} de ${item.total} concluídas (${item.completedPct}%)`}
                       />
                       <div
-                        className="w-3.5 sm:w-5 rounded-t-lg bg-gradient-to-t from-[#FF9F43]/50 to-[#FF9F43] transition-all"
-                        style={{ height: `${item.previous}%` }}
-                        title={`Semana anterior: ${item.previous}%`}
+                        className="w-3.5 sm:w-5 rounded-t-lg bg-gradient-to-t from-[#FDBA74] to-[#FF9F43] transition-all"
+                        style={{ height: `${Math.max(item.committedPct, item.total > 0 ? 8 : 3)}%` }}
+                        title={`${item.day} (${item.dateBR}): ${item.committed} de ${item.total} confirmadas/concluídas (${item.committedPct}%)`}
                       />
                     </div>
-                    <div className="text-xs font-bold text-tf-text">{item.day}</div>
-                    <div className="text-[10px] font-mono text-tf-muted">{item.current}%</div>
+                    <div className={`text-xs font-extrabold ${item.isToday ? 'text-[#FF6B00] underline' : 'text-tf-text'}`}>
+                      {item.day}
+                    </div>
+                    <div className="text-[10px] font-mono text-tf-muted">
+                      {item.dateBR} • {item.completedPct}%
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Sistema de Conquistas & Metas Semanais */}
+            {/* Sistema de Conquistas & Metas Semanais (100% Real) */}
             <div className="rounded-3xl border border-tf-border bg-tf-card p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-extrabold text-tf-text">🏆 Conquistas & Metas</h3>
-                <span className="text-xs font-bold text-[#FFD09B]">Nível Pro 🚀</span>
+                <h3 className="text-base font-extrabold text-tf-text">🏆 Status das Metas</h3>
+                <span className="text-xs font-bold text-[#EA580C]">Tempo Real ⚡</span>
               </div>
 
               <div className="space-y-2.5">
@@ -4252,13 +4563,16 @@
                     key={i}
                     className={`p-3.5 rounded-2xl border flex items-start gap-3 ${
                       ach.unlocked
-                        ? 'bg-[#FF6B00]/10 border-[#FF6B00]/30'
-                        : 'bg-black/20 border-tf-border opacity-60'
+                        ? 'bg-[#FFF7ED] border-[#FF6B00]'
+                        : 'bg-stone-50 border-tf-border opacity-70'
                     }`}
                   >
                     <div className="text-2xl">{ach.icon}</div>
                     <div>
-                      <div className="text-xs font-extrabold text-tf-text">{ach.title}</div>
+                      <div className="text-xs font-extrabold text-tf-text flex items-center gap-1.5">
+                        <span>{ach.title}</span>
+                        {ach.unlocked && <span className="text-[10px] text-[#EA580C]">✓ Ativo</span>}
+                      </div>
                       <div className="text-[11px] text-tf-muted mt-0.5">{ach.desc}</div>
                     </div>
                   </div>
@@ -4870,6 +5184,8 @@
       // =======================================================================
       const autoTriggeredStagesRef = useRef({});
       const rapidSequenceTimersRef = useRef([]);
+      const lastAlertedTaskIdRef = useRef(null);
+      const [lastWhatsAppMonitorEvent, setLastWhatsAppMonitorEvent] = useState(null);
 
       const clearAllRapidSequenceTimers = useCallback(() => {
         if (rapidSequenceTimersRef.current.length > 0) {
@@ -4881,6 +5197,7 @@
       const handleTriggerTelegramAlert = useCallback(
         async (task, stageLabel = 'FALTAM 5 MINUTOS PARA O INÍCIO', preferredTab = 'whatsapp') => {
           if (!task) return;
+          lastAlertedTaskIdRef.current = task.id;
           phoneAudio.playNotificationChime();
 
           let realSent = false;
@@ -5154,8 +5471,7 @@
       // =======================================================================
       // CONFIRMAÇÃO, OBSERVAÇÕES DO WHATSAPP, ADIAMENTO E CANCELAMENTO
       // =======================================================================
-      const processedWhatsAppMsgIdsRef = useRef(new Set());
-      const whatsappPollSinceRef = useRef(Math.floor(Date.now() / 1000) - 900);
+      const processedWhatsAppMsgIdsRef = useRef(loadPersistedProcessedWaIds());
 
       const handleConfirmTaskReceipt = useCallback(
         (taskId, viaChannel = 'whatsapp', callDurationSecs = 18, customObservation = '', rawReplyText = '') => {
@@ -5589,88 +5905,6 @@
         );
       }, [nowTime.toDateString()]);
 
-      // Polling em tempo real (a cada 3 segundos) das respostas do usuário no WhatsApp via Green-API
-      useEffect(() => {
-        const interval = setInterval(async () => {
-          try {
-            const replies = await pollGreenApiUserReplies({
-              settings: state.settings,
-              sinceTimestampSec: whatsappPollSinceRef.current,
-              processedIdsSet: processedWhatsAppMsgIdsRef.current,
-            });
-
-            if (!replies || replies.length === 0) return;
-
-            const todayISO = getTodayISO();
-            for (const reply of replies) {
-              const parsed = parseUserWhatsAppReply(reply.text);
-              if (!parsed) continue;
-
-              // Comandos globais que funcionam mesmo se a agenda estiver vazia:
-              if (parsed.action === 'daily_summary') {
-                handleSendDailySummaryWhatsApp(todayISO);
-                continue;
-              }
-              if (parsed.action === 'create_task') {
-                handleCreateTaskFromWhatsApp(parsed.commandText, parsed.raw);
-                continue;
-              }
-
-              if (!state.tasks || state.tasks.length === 0) continue;
-
-              // Identifica a tarefa alvo:
-              // Se o usuário enviou "CONCLUIDO" ou "NAO CONCLUIDO", prioriza a tarefa aberta no popup, ou uma tarefa de hoje ainda não concluída (notificada, confirmada, em andamento ou pendente)
-              const targetTask =
-                parsed.action === 'complete' || parsed.action === 'not_completed_rollover'
-                  ? activeTelegramPopup?.task ||
-                    state.tasks.find(t => t.date === todayISO && t.status === 'notified') ||
-                    state.tasks.find(t => t.date === todayISO && t.status === 'confirmed') ||
-                    state.tasks.find(t => t.date === todayISO && ['in_progress', 'overdue', 'pending'].includes(t.status)) ||
-                    state.tasks.find(t => t.status !== 'completed' && t.status !== 'cancelled') ||
-                    state.tasks[0]
-                  : activeTelegramPopup?.task ||
-                    state.tasks.find(t => t.date === todayISO && t.status === 'notified') ||
-                    state.tasks.find(t => t.date === todayISO && ['pending', 'overdue', 'in_progress'].includes(t.status)) ||
-                    state.tasks.find(t => t.date === todayISO) ||
-                    state.tasks[0];
-
-              if (!targetTask) continue;
-
-              if (parsed.action === 'not_completed_rollover') {
-                handleRolloverToTomorrow(targetTask.id, parsed.note || '', parsed.raw);
-              } else if (parsed.action === 'complete') {
-                handleCompleteTaskFromWhatsApp(targetTask.id, 'whatsapp', parsed.note || '', parsed.raw);
-              } else if (parsed.action === 'snooze') {
-                handleSnoozeTask(targetTask.id, parsed.minutes || 10);
-              } else if (parsed.action === 'cancel') {
-                handleCancelAlert(targetTask.id);
-              } else if (parsed.action === 'confirm') {
-                handleConfirmTaskReceipt(targetTask.id, 'whatsapp', 0, '', parsed.raw);
-              } else if (parsed.action === 'confirm_and_note') {
-                // Se a tarefa já estava confirmada ou concluída e o usuário enviou mais uma observação no WhatsApp, anexa a observação!
-                if ((targetTask.status === 'confirmed' || targetTask.status === 'completed') && parsed.note) {
-                  handleAddObservationFromWhatsApp(targetTask.id, parsed.note, parsed.raw);
-                } else {
-                  handleConfirmTaskReceipt(targetTask.id, 'whatsapp', 0, parsed.note, parsed.raw);
-                }
-              }
-            }
-          } catch (e) {}
-        }, 3000);
-
-        return () => clearInterval(interval);
-      }, [
-        state.tasks,
-        state.settings,
-        activeTelegramPopup,
-        handleConfirmTaskReceipt,
-        handleCompleteTaskFromWhatsApp,
-        handleRolloverToTomorrow,
-        handleAddObservationFromWhatsApp,
-        handleSendDailySummaryWhatsApp,
-        handleCreateTaskFromWhatsApp,
-      ]);
-
       const handleSnoozeTask = useCallback(
         (taskId, minutes) => {
           clearAllRapidSequenceTimers();
@@ -5724,11 +5958,12 @@
 
           showToast(`⏰ Alerta adiado em ${minutes} minutos e aviso enviado ao WhatsApp!`, 'info');
         },
-        [state.tasks, state.settings, showToast]
+        [state.tasks, state.settings, clearAllRapidSequenceTimers, showToast]
       );
 
       const handleCancelAlert = useCallback(
         (taskId) => {
+          clearAllRapidSequenceTimers();
           if (escalationTimerRef.current) {
             clearTimeout(escalationTimerRef.current);
             escalationTimerRef.current = null;
@@ -5741,8 +5976,236 @@
           setActivePhoneCall(null);
           showToast('❌ Alerta cancelado e próximas tentativas interrompidas.', 'warning');
         },
-        [showToast]
+        [clearAllRapidSequenceTimers, showToast]
       );
+
+      // Processador central de qualquer mensagem/resposta que o usuário escreve no WhatsApp
+      const processIncomingWhatsAppReplyText = useCallback(
+        (rawText) => {
+          const parsed = parseUserWhatsAppReply(rawText);
+          if (!parsed) return false;
+
+          const todayISO = getTodayISO();
+          const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+          // 1. Comandos globais que funcionam mesmo se a agenda estiver vazia:
+          if (parsed.action === 'daily_summary') {
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: '📋 Enviou Resumo do Dia no WhatsApp',
+              taskTitle: 'Agenda de Hoje',
+              time: nowStr,
+            });
+            handleSendDailySummaryWhatsApp(todayISO);
+            return true;
+          }
+
+          if (parsed.action === 'create_task') {
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: '➕ Criou Nova Atividade pelo WhatsApp',
+              taskTitle: parsed.commandText,
+              time: nowStr,
+            });
+            handleCreateTaskFromWhatsApp(parsed.commandText, parsed.raw);
+            return true;
+          }
+
+          // Se não houver nenhuma tarefa na agenda quando o usuário escrever algo no WhatsApp, avisa que leu e responde no WhatsApp!
+          if (!state.tasks || state.tasks.length === 0) {
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: '💬 Mensagem recebida (Agenda vazia no momento)',
+              taskTitle: 'Sem tarefas pendentes',
+              time: nowStr,
+            });
+            showToast(`📲 Mensagem recebida do seu WhatsApp: "${parsed.raw}"! (Crie uma atividade ou envie "Agendar [tarefa] às [hora]")`, 'info');
+            sendGreenApiWhatsAppMessage({
+              settings: state.settings,
+              text:
+                `✅ *MEU CONTROLE MAX – MENSAGEM RECEBIDA!*\n\n` +
+                `💬 *Você escreveu:* "${parsed.raw}"\n` +
+                `ℹ️ No momento não há nenhuma atividade cadastrada na agenda para vincular esta resposta.\n\n` +
+                `💡 _Para criar uma atividade direto por aqui, envie:_\n` +
+                `*"Agendar [nome da tarefa] às [horário]"*`,
+            }).catch(() => {});
+            return true;
+          }
+
+          // 2. Identifica a tarefa alvo de forma inteligente:
+          // Primeiro verifica se o texto do usuário menciona alguma palavra do título de uma tarefa específica:
+          const lowerRaw = parsed.raw.toLowerCase();
+          const matchedByKeyword = state.tasks.find(t => {
+            if (!t.title) return false;
+            const words = t.title
+              .toLowerCase()
+              .split(/\s+/)
+              .filter(w => w.length >= 4 && !['para', 'como', 'pelo', 'pela', 'fazer'].includes(w));
+            return words.some(w => lowerRaw.includes(w));
+          });
+
+          const lastAlertedTask = lastAlertedTaskIdRef.current
+            ? state.tasks.find(t => t.id === lastAlertedTaskIdRef.current)
+            : null;
+
+          const targetTask =
+            matchedByKeyword ||
+            activeTelegramPopup?.task ||
+            (lastAlertedTask && lastAlertedTask.status !== 'completed' ? lastAlertedTask : null) ||
+            state.tasks.find(t => t.date === todayISO && t.status === 'notified') ||
+            state.tasks.find(t => t.date === todayISO && ['pending', 'overdue', 'in_progress'].includes(t.status)) ||
+            state.tasks.find(t => t.date === todayISO && t.status === 'confirmed') ||
+            state.tasks.find(t => t.status !== 'completed' && t.status !== 'cancelled') ||
+            state.tasks.find(t => t.date === todayISO) ||
+            state.tasks[0];
+
+          if (!targetTask) return false;
+
+          if (parsed.action === 'not_completed_rollover') {
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: '📌 Não concluída ➔ Movida p/ TOPO de Amanhã',
+              taskTitle: targetTask.title,
+              time: nowStr,
+            });
+            handleRolloverToTomorrow(targetTask.id, parsed.note || '', parsed.raw);
+          } else if (parsed.action === 'complete') {
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: '🏆 Atividade marcada como CONCLUÍDA',
+              taskTitle: targetTask.title,
+              time: nowStr,
+            });
+            handleCompleteTaskFromWhatsApp(targetTask.id, 'whatsapp', parsed.note || '', parsed.raw);
+          } else if (parsed.action === 'snooze') {
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: `⏰ Adiada em +${parsed.minutes || 10} min`,
+              taskTitle: targetTask.title,
+              time: nowStr,
+            });
+            handleSnoozeTask(targetTask.id, parsed.minutes || 10);
+          } else if (parsed.action === 'cancel') {
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: '❌ Alerta cancelado via WhatsApp',
+              taskTitle: targetTask.title,
+              time: nowStr,
+            });
+            handleCancelAlert(targetTask.id);
+          } else if (parsed.action === 'confirm') {
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: '✅ Recebimento Confirmado via WhatsApp',
+              taskTitle: targetTask.title,
+              time: nowStr,
+            });
+            handleConfirmTaskReceipt(targetTask.id, 'whatsapp', 0, '', parsed.raw);
+          } else if (parsed.action === 'confirm_and_note') {
+            if ((targetTask.status === 'confirmed' || targetTask.status === 'completed') && parsed.note) {
+              setLastWhatsAppMonitorEvent({
+                text: parsed.raw,
+                actionLabel: `📝 Observação adicionada: "${parsed.note}"`,
+                taskTitle: targetTask.title,
+                time: nowStr,
+              });
+              handleAddObservationFromWhatsApp(targetTask.id, parsed.note, parsed.raw);
+            } else {
+              setLastWhatsAppMonitorEvent({
+                text: parsed.raw,
+                actionLabel: `✅ Confirmado + 📝 Anotado: "${parsed.note}"`,
+                taskTitle: targetTask.title,
+                time: nowStr,
+              });
+              handleConfirmTaskReceipt(targetTask.id, 'whatsapp', 0, parsed.note, parsed.raw);
+            }
+          }
+          return true;
+        },
+        [
+          state.tasks,
+          state.settings,
+          activeTelegramPopup,
+          handleConfirmTaskReceipt,
+          handleCompleteTaskFromWhatsApp,
+          handleRolloverToTomorrow,
+          handleAddObservationFromWhatsApp,
+          handleSendDailySummaryWhatsApp,
+          handleCreateTaskFromWhatsApp,
+          handleSnoozeTask,
+          handleCancelAlert,
+          showToast,
+        ]
+      );
+
+      // Força a leitura imediata da última mensagem que o usuário escreveu no WhatsApp (botão manual ou diagnóstico)
+      const handleForceReadWhatsAppNow = useCallback(async () => {
+        try {
+          const idInst = (state.settings?.greenApiIdInstance || '710722790234').trim();
+          const tokInst = (state.settings?.greenApiToken || 'bc3f8075a090411296a983a516a499d80a6ec55c88f648c2bf').trim();
+          const prefix = idInst.slice(0, 4);
+          const baseHost = (state.settings?.greenApiUrl || `https://${prefix}.api.greenapi.com`).trim().replace(/\/$/, '');
+          const targetPhone = state.settings?.whatsappNumber || state.settings?.phone || '+5589981026502';
+          const chatIds = getBrazilWhatsAppChatIds(targetPhone);
+
+          let latestUserMsg = null;
+          for (const chatId of chatIds) {
+            const res = await fetch(`${baseHost}/waInstance${idInst}/getChatHistory/${tokInst}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chatId, count: 10 }),
+            });
+            if (res.ok) {
+              const history = await res.json();
+              if (Array.isArray(history)) {
+                for (const msg of history) {
+                  const text = extractGreenApiMessageText(msg);
+                  if (text && !isAutomatedBotMessage(text, msg.idMessage)) {
+                    if (!latestUserMsg || (msg.timestamp || 0) > (latestUserMsg.timestamp || 0)) {
+                      latestUserMsg = { idMessage: msg.idMessage, text, timestamp: msg.timestamp || 0 };
+                    }
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (latestUserMsg && latestUserMsg.text) {
+            processedWhatsAppMsgIdsRef.current.add(latestUserMsg.idMessage);
+            savePersistedProcessedWaIds(processedWhatsAppMsgIdsRef.current);
+            processIncomingWhatsAppReplyText(latestUserMsg.text);
+          } else {
+            showToast('📡 Conectado ao WhatsApp! Nenhuma mensagem sua encontrada após os alertas recentes.', 'info');
+          }
+        } catch (e) {
+          showToast('⚠️ Erro ao consultar histórico do WhatsApp. Verifique sua conexão.', 'warning');
+        }
+      }, [state.settings, processIncomingWhatsAppReplyText, showToast]);
+
+      // Polling em tempo real (a cada 2 segundos) das respostas do usuário no WhatsApp via Green-API
+      useEffect(() => {
+        let isMounted = true;
+        const runPoll = async () => {
+          try {
+            const replies = await pollGreenApiUserReplies({
+              settings: state.settings,
+              processedIdsSet: processedWhatsAppMsgIdsRef.current,
+            });
+            if (!isMounted || !replies || replies.length === 0) return;
+            for (const reply of replies) {
+              processIncomingWhatsAppReplyText(reply.text);
+            }
+          } catch (e) {}
+        };
+
+        runPoll();
+        const interval = setInterval(runPoll, 2000);
+        return () => {
+          isMounted = false;
+          clearInterval(interval);
+        };
+      }, [state.settings, processIncomingWhatsAppReplyText]);
 
       const handleHangupUnanswered = useCallback(
         (task) => {
@@ -6033,159 +6496,193 @@
         showToast('📅 Compromisso reagendado no calendário!', 'success');
       };
 
+      const renderStrokeIcon = (name, className = 'w-5 h-5') => {
+        const common = {
+          className,
+          viewBox: '0 0 24 24',
+          fill: 'none',
+          stroke: 'currentColor',
+          strokeWidth: '1.75',
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          'aria-hidden': 'true',
+        };
+        switch (name) {
+          case 'bell':
+            return (
+              <svg {...common}>
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            );
+          case 'calendar':
+            return (
+              <svg {...common}>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            );
+          case 'check':
+            return (
+              <svg {...common}>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+            );
+          case 'phone':
+            return (
+              <svg {...common}>
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+            );
+          case 'message':
+            return (
+              <svg {...common}>
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            );
+          case 'chart':
+            return (
+              <svg {...common}>
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+            );
+          case 'clock':
+            return (
+              <svg {...common}>
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            );
+          case 'plus':
+            return (
+              <svg {...common}>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            );
+          case 'settings':
+            return (
+              <svg {...common}>
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            );
+          default:
+            return (
+              <svg {...common}>
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            );
+        }
+      };
+
       const navItems = [
-        { id: 'dashboard', label: 'Dashboard',          icon: '🏠' },
-        { id: 'calendar',  label: 'Agenda Inteligente', icon: '📅' },
-        { id: 'alerts',    label: 'Central de Alertas', icon: '🔔', badge: state.notificationLogs.length },
-        { id: 'assistant', label: 'Meu Assistente IA',  icon: '🤖' },
-        { id: 'reports',   label: 'Produtividade',      icon: '📊' },
-        { id: 'settings',  label: 'Configurações',      icon: '⚙️' },
+        { id: 'dashboard', label: 'Check-list',     icon: 'check' },
+        { id: 'calendar',  label: 'Agenda',         icon: 'calendar' },
+        { id: 'alerts',    label: 'Alertas',        icon: 'bell', badge: state.notificationLogs.length },
+        { id: 'assistant', label: 'Assistente IA',  icon: 'message' },
+        { id: 'reports',   label: 'Produtividade',  icon: 'chart' },
+        { id: 'settings',  label: 'Configurações',  icon: 'settings' },
       ];
 
       return (
-        <div className="min-h-screen flex flex-col lg:flex-row bg-tf-bg text-tf-text">
-          {/* SIDEBAR DESKTOP */}
-          <aside className="hidden lg:flex lg:w-68 xl:w-72 shrink-0 flex-col justify-between border-r border-tf-border bg-tf-card p-5">
-            <div className="space-y-6">
-              {/* Logo Meu Controle Max */}
-              <div className="flex items-center justify-between px-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#FF6B00] to-[#FF9F43] flex items-center justify-center text-white font-extrabold text-xl shadow-lg badge-orange-white">
+        <div className="min-h-screen flex flex-col bg-[#FAFAFA] text-[#18181B]">
+          {/* CABEÇALHO CLEAN DO SISTEMA PESSOAL */}
+          <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[#E4E4E7]">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6">
+              <div className="h-16 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('dashboard')}
+                  className="flex items-center gap-2.5 text-[#18181B] font-bold tracking-tight text-sm sm:text-base shrink-0"
+                >
+                  <span className="w-8 h-8 rounded-lg bg-[#C2410C] text-white flex items-center justify-center font-bold text-sm">
                     M
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-extrabold text-base tracking-tight text-tf-text">MEU CONTROLE MAX</span>
-                    </div>
-                    <p className="text-[11px] text-[#EA580C] font-bold">Gestão & Alertas Inteligentes</p>
-                  </div>
+                  </span>
+                  <span>MEU CONTROLE MAX</span>
+                </button>
+
+                {/* Navegação Desktop */}
+                <nav aria-label="Navegação principal" className="hidden lg:flex items-center gap-1.5">
+                  {navItems.map(item => {
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setActiveTab(item.id)}
+                        className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold inline-flex items-center gap-2 transition ${
+                          isActive
+                            ? 'bg-[#C2410C] text-white'
+                            : 'text-[#52525B] hover:text-[#18181B] hover:bg-[#FAFAFA]'
+                        }`}
+                      >
+                        {renderStrokeIcon(item.icon, 'w-4 h-4')}
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingTask(null);
+                      setTaskModalOpen(true);
+                    }}
+                    className="btn-primary px-3.5 sm:px-4 py-2 text-xs sm:text-sm inline-flex items-center gap-1.5"
+                  >
+                    {renderStrokeIcon('plus', 'w-4 h-4')}
+                    <span>Novo Compromisso</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Botão Rápido de Criar Compromisso */}
-              <button
-                onClick={() => {
-                  setEditingTask(null);
-                  setTaskModalOpen(true);
-                }}
-                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-[#FF8C1A] text-white font-extrabold text-xs sm:text-sm shadow-lg hover:brightness-105 transition flex items-center justify-center gap-2"
-              >
-                <span>➕</span>
-                <span>Novo Compromisso</span>
-              </button>
-
-              {/* Navegação Principal */}
-              <nav className="space-y-1.5">
+              {/* Barra de Navegação Mobile / Tablet */}
+              <nav aria-label="Abas do sistema" className="lg:hidden flex items-center gap-1.5 overflow-x-auto pb-2.5 pt-0.5">
                 {navItems.map(item => {
                   const isActive = activeTab === item.id;
                   return (
                     <button
                       key={item.id}
+                      type="button"
                       onClick={() => setActiveTab(item.id)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 shrink-0 transition ${
                         isActive
-                          ? 'bg-gradient-to-r from-[#FF6B00] to-[#FF8C1A] text-white border border-[#EA580C] shadow badge-orange-white'
-                          : 'text-tf-muted hover:text-[#EA580C] hover:bg-orange-50'
+                          ? 'bg-[#C2410C] text-white'
+                          : 'bg-[#FAFAFA] text-[#52525B] border border-[#E4E4E7]'
                       }`}
                     >
-                      <span className="flex items-center gap-3">
-                        <span className="text-base">{item.icon}</span>
-                        <span>{item.label}</span>
-                      </span>
-                      {item.badge ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-white text-[#EA580C] font-extrabold">
-                          {item.badge}
-                        </span>
-                      ) : null}
+                      {renderStrokeIcon(item.icon, 'w-3.5 h-3.5')}
+                      <span>{item.label}</span>
                     </button>
                   );
                 })}
               </nav>
             </div>
+          </header>
 
-            {/* Card de Status das Integrações na Sidebar */}
-            <div className="rounded-2xl border border-tf-border bg-[#FFF7ED] p-4 space-y-2.5 text-xs">
-              <div className="font-extrabold text-[#EA580C] flex items-center justify-between">
-                <span>⚡ Ciclo Automático Ativo</span>
-                <span className="w-2 h-2 rounded-full bg-[#FF6B00] animate-ping" />
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-tf-muted">🟠 WhatsApp (5, 3, 2, 1m)</span>
-                <span className="text-[#EA580C] font-bold">Ativo</span>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-tf-muted">💬 SMS Pós-Início</span>
-                <span className="text-[#EA580C] font-bold">Ativo</span>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-tf-muted">✈️ Telegram Bot</span>
-                <span className="text-[#EA580C] font-bold">Online</span>
-              </div>
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-tf-muted">📞 Ligação (DTMF)</span>
-                <span className="text-[#EA580C] font-bold">Escala Auto</span>
-              </div>
-              <p className="text-[10px] text-tf-muted pt-1 border-t border-orange-200">
-                "MEU CONTROLE MAX — Organize seu tempo. Não perca nenhum compromisso."
-              </p>
+          {/* Toast de Feedback em Tempo Real */}
+          {toast && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="fixed top-20 right-4 z-50 max-w-sm clean-card px-4 py-3 text-xs sm:text-sm font-semibold text-[#18181B] flex items-center gap-3 border-l-4 border-l-[#C2410C]"
+            >
+              <span className="flex-1">{toast.message}</span>
+              <button onClick={() => setToast(null)} aria-label="Fechar aviso" className="text-[#52525B] hover:text-[#18181B] p-1">✕</button>
             </div>
-          </aside>
+          )}
 
-          {/* CONTEÚDO PRINCIPAL */}
-          <div className="flex-1 flex flex-col min-w-0 pb-24 lg:pb-8">
-            {/* Topbar */}
-            <header className="sticky top-0 z-30 glass-panel border-b border-tf-border px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="lg:hidden w-9 h-9 rounded-xl bg-gradient-to-br from-[#FF6B00] to-[#FF9F43] flex items-center justify-center text-white font-extrabold badge-orange-white">
-                  M
-                </div>
-                <div>
-                  <span className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-[#EA580C]">
-                    MEU CONTROLE MAX • GESTÃO INTELIGENTE
-                  </span>
-                  <div className="text-xs text-tf-muted hidden sm:block">
-                    Organize seu tempo. Alertas em 5m, 3m, 2m, 1m e Pós-Início no WhatsApp & SMS.
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 sm:gap-3">
-                <button
-                  onClick={() => setActiveTab('assistant')}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-tf-border text-xs font-bold text-tf-text flex items-center gap-1.5"
-                >
-                  <span>🤖</span>
-                  <span className="hidden sm:inline">Assistente IA</span>
-                </button>
-                <button
-                  onClick={() => handleTriggerVoiceCall(state.tasks[0])}
-                  className="px-3 py-1.5 rounded-xl bg-[#FF9F43]/20 hover:bg-[#FF9F43]/30 border border-[#FF9F43]/40 text-xs font-bold text-[#FFD09B] flex items-center gap-1.5"
-                >
-                  <span>📞</span>
-                  <span className="hidden sm:inline">Testar Ligação</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('settings')}
-                  className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-tf-border text-xs font-bold"
-                >
-                  <span className="w-6 h-6 rounded-full bg-[#FF6B00] text-[#101713] flex items-center justify-center font-extrabold text-[11px]">
-                    {(state.settings.fullName || 'AR').slice(0, 2).toUpperCase()}
-                  </span>
-                  <span className="hidden md:inline truncate max-w-[120px]">{state.settings.fullName}</span>
-                </button>
-              </div>
-            </header>
-
-            {/* Toast de Feedback em Tempo Real */}
-            {toast && (
-              <div className="fixed top-16 right-4 z-50 max-w-md rounded-2xl border border-[#FF6B00]/50 bg-[#142019] px-4 py-3 text-xs sm:text-sm font-bold text-tf-text shadow-2xl flex items-center gap-3">
-                <span>{toast.message}</span>
-                <button onClick={() => setToast(null)} className="text-tf-muted hover:text-white">✕</button>
-              </div>
-            )}
-
-            {/* Área das Páginas */}
-            <main className="p-4 sm:p-6 max-w-7xl w-full mx-auto flex-1">
+          {/* ÁREA PRINCIPAL DIRETA DO SISTEMA (Sem landing de vendas ou autoexplicação) */}
+          <main id="top" className="flex-1 py-6 sm:py-8 px-4 sm:px-6">
+            <div className="max-w-6xl mx-auto">
               {activeTab === 'dashboard' && (
                 <DashboardView
                   tasks={state.tasks}
@@ -6212,6 +6709,9 @@
                   onTriggerVoiceCall={handleTriggerVoiceCall}
                   onRunLiveFlowSimulation={handleRunLiveFlowSimulation}
                   onScheduleAutoFiveMinDemo={handleScheduleAutoFiveMinDemo}
+                  lastWhatsAppMonitorEvent={lastWhatsAppMonitorEvent}
+                  onForceReadWhatsAppNow={handleForceReadWhatsAppNow}
+                  onSimulateWhatsAppReply={processIncomingWhatsAppReplyText}
                   onSelectDateInCalendar={dt => {
                     setSelectedCalendarDate(dt);
                     setActiveTab('calendar');
@@ -6292,38 +6792,26 @@
                   sampleTask={state.tasks[0]}
                 />
               )}
-            </main>
-          </div>
+            </div>
+          </main>
 
-          {/* EXPERIÊNCIA MOBILE (SEÇÃO 12): BOTÃO FLUTUANTE (FAB) + MENU INFERIOR */}
-          <button
-            onClick={() => {
-              setEditingTask(null);
-              setTaskModalOpen(true);
-            }}
-            className="lg:hidden fixed bottom-20 right-4 z-40 w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FF6B00] to-[#FF9F43] text-[#101713] font-extrabold text-2xl shadow-2xl flex items-center justify-center"
-            title="Nova Tarefa"
-          >
-            ➕
-          </button>
-
-          <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass-panel border-t border-tf-border px-2 py-1.5 grid grid-cols-6 gap-1">
-            {navItems.map(item => {
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex flex-col items-center justify-center py-1.5 rounded-xl text-[10px] font-bold transition ${
-                    isActive ? 'text-[#FF6B00] bg-white/5' : 'text-tf-muted'
-                  }`}
-                >
-                  <span className="text-base">{item.icon}</span>
-                  <span className="truncate max-w-[56px]">{item.label.split(' ')[0]}</span>
-                </button>
-              );
-            })}
-          </nav>
+          {/* RODAPÉ MINIMALISTA */}
+          <footer className="bg-white border-t border-[#E4E4E7] py-4 px-4 sm:px-6">
+            <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-[#52525B]">
+              <div className="flex flex-wrap items-center gap-2">
+                <strong className="text-[#18181B]">MEU CONTROLE MAX</strong>
+                <span>•</span>
+                <span>WhatsApp conectado: {state.settings.whatsappNumber || '+55 89 98102-6502'}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('settings')}
+                className="hover:text-[#18181B] transition"
+              >
+                Configurações
+              </button>
+            </div>
+          </footer>
 
           {/* MODAL DE CADASTRO / EDIÇÃO DE TAREFAS */}
           <TaskFormModal
