@@ -669,27 +669,62 @@
       );
     }
 
+    function getRepeatShotOffsetsSeconds(repeatCount, windowMinutes = 5) {
+      const count = Math.max(1, Math.min(30, Number(repeatCount) || 1));
+      const winMins = Math.max(1, Math.min(60, Number(windowMinutes) || 5));
+      const totalSecs = winMins * 60;
+      if (count === 1) return [0];
+      // Se o número de repetições for igual ao número de minutos (ex: 5x em 5 min), dispara 1 vez por minuto
+      if (count === winMins) {
+        return Array.from({ length: count }, (_, i) => i * 60);
+      }
+      const step = Math.round(totalSecs / (count - 1));
+      return Array.from({ length: count }, (_, i) => i * step);
+    }
+
+    function formatTimeWithOffsetSeconds(baseHM, offsetSeconds) {
+      const [h, m] = (baseHM || '09:00').split(':').map(Number);
+      const baseTotalSecs = (h || 0) * 3600 + (m || 0) * 60 + (Number(offsetSeconds) || 0);
+      const norm = ((baseTotalSecs % 86400) + 86400) % 86400;
+      const hh = String(Math.floor(norm / 3600)).padStart(2, '0');
+      const mm = String(Math.floor((norm % 3600) / 60)).padStart(2, '0');
+      const ss = String(norm % 60).padStart(2, '0');
+      return ss === '00' ? `${hh}:${mm}` : `${hh}:${mm}:${ss}`;
+    }
+
+    function buildQuickSmsStyleWhatsAppText(task, shotNumber = 1, totalShots = 1, windowMinutes = 5) {
+      return (
+        `📲 *MEU CONTROLE MAX – ALERTA SMS [${shotNumber}/${totalShots}]*\n\n` +
+        `🔔 *${task.title}*\n` +
+        (task.description ? `📝 ${task.description}\n` : '') +
+        `⏰ *Horário Programado:* ${task.startTime} (Disparo ${shotNumber} de ${totalShots} no intervalo de ${windowMinutes} min)\n\n` +
+        `💬 *RESPONDA AQUI NO WHATSAPP:*\n` +
+        `• *OK* ou *CONCLUIDO* → Confirmar e parar os disparos\n` +
+        `• *NAO* → Mover para o topo de amanhã`
+      );
+    }
+
     function buildWhatsAppDirectUrl(phone, task, stageLabel) {
       const cleanPhone = (phone || '+5589981026502').replace(/\D/g, '');
       const text = buildWhatsAppMessageText(task, stageLabel);
       return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`;
     }
 
-    // Resolve os possíveis chatIds do WhatsApp no Brasil (com e sem o 9º dígito após o DDD)
+    // Resolve os possíveis chatIds do WhatsApp no Brasil (priorizando SEM o 9º dígito para DDDs 31-99 como 89 e 86!)
     function getBrazilWhatsAppChatIds(rawPhone) {
       let digits = (rawPhone || '+5589981026502').replace(/\D/g, '');
       if (digits.length === 10 || digits.length === 11) {
         digits = '55' + digits;
       }
       const chatIds = new Set();
-      chatIds.add(`${digits}@c.us`);
 
-      // No Brasil (DDD 31 a 99, como DDD 89 e 86), o WhatsApp registra contas antigas SEM o 9º dígito (12 dígitos no total: 55 + DDD + 8 dígitos)
+      // No Brasil (DDD 31 a 99, como DDD 89 e 86), o WhatsApp registra contas SEM o 9º dígito (12 dígitos: 55 + DDD + 8 dígitos). Colocamos SEM o 9º dígito em PRIMEIRO lugar!
       if (digits.startsWith('55') && digits.length === 13 && digits[4] === '9') {
         const withoutNinth = digits.slice(0, 4) + digits.slice(5);
         chatIds.add(`${withoutNinth}@c.us`);
       }
-      // E se o usuário digitou sem o 9 (12 dígitos), adiciona também a versão com o 9 (13 dígitos)
+      chatIds.add(`${digits}@c.us`);
+
       if (digits.startsWith('55') && digits.length === 12) {
         const withNinth = digits.slice(0, 4) + '9' + digits.slice(4);
         chatIds.add(`${withNinth}@c.us`);
@@ -697,11 +732,25 @@
       return Array.from(chatIds);
     }
 
+    // Verifica se um chatId / senderId pertence ao número do usuário (com ou sem 9º dígito, ou pelos últimos 8 dígitos)
+    function matchesUserPhoneChatId(chatIdOrSender, targetPhone) {
+      if (!chatIdOrSender) return false;
+      const str = String(chatIdOrSender).trim();
+      if (str.endsWith('@g.us')) return false; // Ignora grupos de WhatsApp
+      const chatIds = getBrazilWhatsAppChatIds(targetPhone);
+      if (chatIds.includes(str)) return true;
+      const targetDigits = (targetPhone || '+5589981026502').replace(/\D/g, '');
+      const last8 = targetDigits.slice(-8);
+      const incomingDigits = str.replace(/\D/g, '');
+      return last8.length === 8 && incomingDigits.endsWith(last8);
+    }
+
     // Registro global de mensagens enviadas pelo próprio Bot para nunca confundir o disparo automático com a resposta do usuário
     const SENT_BY_BOT_MESSAGE_IDS = new Set();
     let GREEN_API_WEBHOOK_CONFIGURED = false;
     const WA_READER_STATE = {
       initialized: false,
+      isPolling: false,
       baselineServerTimestamp: 0,
     };
 
@@ -794,9 +843,9 @@
         };
       }
 
-      // 0B. Criar nova tarefa direto pelo WhatsApp (ex: "Agendar vistoria às 14:30", "Criar reunião amanhã 10:00", "Lembrar de ligar 11:00")
+      // 0B. Criar nova tarefa ou alerta direto pelo WhatsApp (ex: "Agendar vistoria às 14:30", "Alerta ligar para Miguel 11:00", "Lembrar de ligar 11:00")
       const createMatch = cleaned.match(
-        /^(agendar|agende|criar|crie|nova\s+tarefa|novo\s+compromisso|nova\s+atividade|nova|novo|cadastrar|cadastre|marcar|marque|me\s+lembre|lembrar)\b[\s,.:;-]+(.+)$/i
+        /^(agendar|agende|criar|crie|nova\s+tarefa|novo\s+compromisso|nova\s+atividade|novo\s+alerta|alerta|alertar|aviso|avisar|programar|programe|nova|novo|cadastrar|cadastre|marcar|marque|me\s+lembre|lembrar|lembrete)\b[\s,.:;-]+(.+)$/i
       );
       if (createMatch && createMatch[2] && createMatch[2].trim().length >= 3) {
         return {
@@ -957,175 +1006,185 @@
       } catch (e) {}
     }
 
-    // Busca respostas reais do usuário no WhatsApp via Green-API (100% imune a diferença de fuso/ano do relógio do PC)
+    // Busca respostas reais do usuário no WhatsApp via Green-API (100% imune a erro 401/429 e a diferença de relógio do PC)
     async function pollGreenApiUserReplies({ settings, processedIdsSet, forceCheckLatest = false }) {
-      const idInst = (settings?.greenApiIdInstance || '710722790234').trim();
-      const tokInst = (settings?.greenApiToken || 'bc3f8075a090411296a983a516a499d80a6ec55c88f648c2bf').trim();
-      if (!idInst || !tokInst) return [];
+      if (WA_READER_STATE.isPolling && !forceCheckLatest) return [];
+      WA_READER_STATE.isPolling = true;
 
-      const prefix = idInst.slice(0, 4);
-      const baseHost = (settings?.greenApiUrl || `https://${prefix}.api.greenapi.com`).trim().replace(/\/$/, '');
-      const targetPhone = settings?.whatsappNumber || settings?.phone || '+5589981026502';
-      const chatIds = getBrazilWhatsAppChatIds(targetPhone);
-      const chatIdsSet = new Set(chatIds);
+      try {
+        const idInst = (settings?.greenApiIdInstance || '710722790234').trim();
+        const tokInst = (settings?.greenApiToken || 'bc3f8075a090411296a983a516a499d80a6ec55c88f648c2bf').trim();
+        if (!idInst || !tokInst) return [];
 
-      ensureGreenApiWebhookSettings(baseHost, idInst, tokInst);
+        const prefix = idInst.slice(0, 4);
+        const baseHost = (settings?.greenApiUrl || `https://${prefix}.api.greenapi.com`).trim().replace(/\/$/, '');
+        const targetPhone = settings?.whatsappNumber || settings?.phone || '+5589981026502';
+        const chatIds = getBrazilWhatsAppChatIds(targetPhone);
 
-      const candidateMessages = [];
+        ensureGreenApiWebhookSettings(baseHost, idInst, tokInst);
 
-      // 1. Consulta o histórico recente da conversa (getChatHistory) nos JIDs do usuário (com e sem 9º dígito)
-      for (const chatId of chatIds) {
+        const candidateMessages = [];
+        let latestBotAlertTimestamp = 0;
+
+        // 1. Consulta lastIncomingMessages e lastOutgoingMessages SEM query string (na Green-API, passar ?minutes=30 causa 401, enquanto sem query string retorna 200 OK em ~150ms!)
         try {
-          const res = await fetch(`${baseHost}/waInstance${idInst}/getChatHistory/${tokInst}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chatId, count: 12 }),
-          });
-          if (res.ok) {
-            const history = await res.json();
-            if (Array.isArray(history)) {
-              // Na 1ª execução (inicialização), se a mensagem mais recente (history[0]) for uma resposta do usuário logo após um alerta nosso e ainda não tiver sido processada, permite processá-la!
-              history.forEach((msg, idx) => {
-                if (!msg || !msg.idMessage) return;
-                const text = extractGreenApiMessageText(msg);
-                candidateMessages.push({
-                  idMessage: msg.idMessage,
-                  text,
-                  timestamp: Number(msg.timestamp) || 0,
-                  chatId: msg.chatId || chatId,
-                  isVeryLatestInChat: idx === 0,
-                  followedBotAlert: idx === 0 && history[1] && isAutomatedBotMessage(extractGreenApiMessageText(history[1]), history[1]?.idMessage),
-                });
+          const [inRes, outRes] = await Promise.all([
+            fetch(`${baseHost}/waInstance${idInst}/lastIncomingMessages/${tokInst}`).catch(() => null),
+            fetch(`${baseHost}/waInstance${idInst}/lastOutgoingMessages/${tokInst}`).catch(() => null),
+          ]);
+
+          if (outRes && outRes.ok) {
+            const rawOut = await outRes.json();
+            const outList = Array.isArray(rawOut) ? rawOut : rawOut?.value || [];
+            for (const msg of outList) {
+              if (!msg || !msg.idMessage) continue;
+              if (!matchesUserPhoneChatId(msg.chatId, targetPhone)) continue;
+              const text = extractGreenApiMessageText(msg);
+              const ts = Number(msg.timestamp) || 0;
+              if (msg.sendByApi || isAutomatedBotMessage(text, msg.idMessage)) {
+                SENT_BY_BOT_MESSAGE_IDS.add(msg.idMessage);
+                if (ts > latestBotAlertTimestamp) {
+                  latestBotAlertTimestamp = ts;
+                }
+                continue;
+              }
+              // Se o próprio usuário digitou manualmente pelo aparelho conectado
+              candidateMessages.push({
+                idMessage: msg.idMessage,
+                text,
+                timestamp: ts,
+                chatId: msg.chatId || chatIds[0],
+              });
+            }
+          }
+
+          if (inRes && inRes.ok) {
+            const rawIn = await inRes.json();
+            const inList = Array.isArray(rawIn) ? rawIn : rawIn?.value || [];
+            for (const msg of inList) {
+              if (!msg || !msg.idMessage) continue;
+              const matchChat =
+                matchesUserPhoneChatId(msg.chatId, targetPhone) ||
+                matchesUserPhoneChatId(msg.senderId, targetPhone);
+              if (!matchChat) continue;
+              const text = extractGreenApiMessageText(msg);
+              const ts = Number(msg.timestamp) || 0;
+              candidateMessages.push({
+                idMessage: msg.idMessage,
+                text,
+                timestamp: ts,
+                chatId: msg.chatId || chatIds[0],
               });
             }
           }
         } catch (e) {}
-      }
 
-      // 2. Consulta lastOutgoingMessages e lastIncomingMessages (captura mensagens digitadas no próprio aparelho conectado à Green-API)
-      try {
-        const [outRes, inRes] = await Promise.all([
-          fetch(`${baseHost}/waInstance${idInst}/lastOutgoingMessages/${tokInst}?minutes=30`).catch(() => null),
-          fetch(`${baseHost}/waInstance${idInst}/lastIncomingMessages/${tokInst}?minutes=30`).catch(() => null),
-        ]);
-        for (const r of [outRes, inRes]) {
-          if (r && r.ok) {
-            const list = await r.json();
-            if (Array.isArray(list)) {
-              for (const msg of list) {
+        // 2. Fallback: Se lastIncomingMessages estiver vazio, consulta getChatHistory apenas no JID principal sem 9º dígito (evitando 429 Too Many Requests)
+        if (candidateMessages.length === 0 && chatIds.length > 0) {
+          try {
+            const primaryChatId = chatIds[0];
+            const res = await fetch(`${baseHost}/waInstance${idInst}/getChatHistory/${tokInst}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chatId: primaryChatId, count: 10 }),
+            });
+            if (res.ok) {
+              const rawHist = await res.json();
+              const history = Array.isArray(rawHist) ? rawHist : rawHist?.value || [];
+              for (const msg of history) {
                 if (!msg || !msg.idMessage) continue;
-                if (msg.chatId && !chatIdsSet.has(msg.chatId)) continue;
                 const text = extractGreenApiMessageText(msg);
+                const ts = Number(msg.timestamp) || 0;
+                if (msg.sendByApi || isAutomatedBotMessage(text, msg.idMessage)) {
+                  SENT_BY_BOT_MESSAGE_IDS.add(msg.idMessage);
+                  if (ts > latestBotAlertTimestamp) latestBotAlertTimestamp = ts;
+                  continue;
+                }
                 candidateMessages.push({
                   idMessage: msg.idMessage,
                   text,
-                  timestamp: Number(msg.timestamp) || 0,
-                  chatId: msg.chatId || chatIds[0],
-                  isVeryLatestInChat: false,
-                  followedBotAlert: false,
+                  timestamp: ts,
+                  chatId: msg.chatId || primaryChatId,
                 });
               }
             }
-          }
+          } catch (e) {}
         }
-      } catch (e) {}
 
-      // 3. Drena até 5 eventos da fila receiveNotification (para não travar atrás de notificações de status)
-      for (let i = 0; i < 5; i++) {
-        try {
-          const notifRes = await fetch(`${baseHost}/waInstance${idInst}/receiveNotification/${tokInst}`);
-          if (!notifRes.ok) break;
-          const notif = await notifRes.json();
-          if (!notif || !notif.receiptId) break;
+        // Ordena do mais antigo para o mais recente
+        candidateMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
-          const body = notif.body || {};
-          const idMsg = body.idMessage;
-          const senderChatId = body.senderData?.chatId || body.chatId || '';
-          const text = extractGreenApiMessageText(body);
-
-          if (idMsg && text && (!senderChatId || chatIdsSet.has(senderChatId))) {
-            candidateMessages.push({
-              idMessage: idMsg,
-              text,
-              timestamp: Number(body.timestamp) || 0,
-              chatId: senderChatId || chatIds[0],
-              isVeryLatestInChat: true,
-              followedBotAlert: true,
-            });
+        // Na primeira leitura após abrir a página, marca mensagens muito antigas como já vistas, MAS preserva qualquer resposta que o usuário enviou APÓS o último alerta do Bot!
+        if (!WA_READER_STATE.initialized && !forceCheckLatest) {
+          WA_READER_STATE.initialized = true;
+          let maxTs = latestBotAlertTimestamp || 0;
+          for (const item of candidateMessages) {
+            if (item.timestamp > maxTs) maxTs = item.timestamp;
+            const isRecentReplyAfterAlert =
+              latestBotAlertTimestamp > 0 && item.timestamp >= latestBotAlertTimestamp - 15;
+            if (
+              isRecentReplyAfterAlert &&
+              !processedIdsSet.has(item.idMessage) &&
+              !isAutomatedBotMessage(item.text, item.idMessage)
+            ) {
+              // Deixa passar para ser processada agora!
+              continue;
+            }
+            processedIdsSet.add(item.idMessage);
           }
-
-          await fetch(
-            `${baseHost}/waInstance${idInst}/deleteNotification/${tokInst}/${notif.receiptId}`,
-            { method: 'DELETE' }
-          ).catch(() => {});
-        } catch (e) {
-          break;
+          WA_READER_STATE.baselineServerTimestamp = maxTs;
+          savePersistedProcessedWaIds(processedIdsSet);
         }
-      }
 
-      // Na primeira leitura após abrir a página, sincroniza o baseline usando o relógio do PRÓPRIO servidor da Green-API (nunca Date.now() local!)
-      if (!WA_READER_STATE.initialized && !forceCheckLatest) {
-        WA_READER_STATE.initialized = true;
-        let maxTs = 0;
+        const detectedReplies = [];
+        const seenInThisBatch = new Set();
+
         for (const item of candidateMessages) {
-          if (item.timestamp > maxTs) maxTs = item.timestamp;
-          // Se a mensagem mais recente da conversa foi enviada pelo usuário logo depois de um alerta do Bot e ainda não estava salva no localStorage, deixa ela passar para ser lida!
-          if (item.isVeryLatestInChat && item.followedBotAlert && !processedIdsSet.has(item.idMessage) && !isAutomatedBotMessage(item.text, item.idMessage)) {
+          if (!item.idMessage || seenInThisBatch.has(item.idMessage)) continue;
+          seenInThisBatch.add(item.idMessage);
+
+          if (processedIdsSet.has(item.idMessage)) continue;
+
+          if (!item.text || isAutomatedBotMessage(item.text, item.idMessage)) {
+            processedIdsSet.add(item.idMessage);
             continue;
           }
+
+          const isReplyToRecentBotAlert =
+            latestBotAlertTimestamp > 0 && item.timestamp >= latestBotAlertTimestamp - 15;
+
+          if (
+            !forceCheckLatest &&
+            !isReplyToRecentBotAlert &&
+            WA_READER_STATE.baselineServerTimestamp > 0 &&
+            item.timestamp > 0 &&
+            item.timestamp < WA_READER_STATE.baselineServerTimestamp - 30
+          ) {
+            processedIdsSet.add(item.idMessage);
+            continue;
+          }
+
+          if (item.timestamp > WA_READER_STATE.baselineServerTimestamp) {
+            WA_READER_STATE.baselineServerTimestamp = item.timestamp;
+          }
+
           processedIdsSet.add(item.idMessage);
+          detectedReplies.push({
+            idMessage: item.idMessage,
+            text: item.text,
+            timestamp: item.timestamp,
+            chatId: item.chatId,
+          });
         }
-        WA_READER_STATE.baselineServerTimestamp = maxTs;
-        savePersistedProcessedWaIds(processedIdsSet);
+
+        if (detectedReplies.length > 0) {
+          savePersistedProcessedWaIds(processedIdsSet);
+        }
+
+        return detectedReplies;
+      } finally {
+        WA_READER_STATE.isPolling = false;
       }
-
-      const detectedReplies = [];
-      const seenInThisBatch = new Set();
-
-      // Ordena do mais antigo para o mais recente para processar na ordem certa
-      candidateMessages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-
-      for (const item of candidateMessages) {
-        if (!item.idMessage || seenInThisBatch.has(item.idMessage)) continue;
-        seenInThisBatch.add(item.idMessage);
-
-        if (processedIdsSet.has(item.idMessage)) continue;
-
-        if (!item.text || isAutomatedBotMessage(item.text, item.idMessage)) {
-          processedIdsSet.add(item.idMessage);
-          continue;
-        }
-
-        // Se não for busca forçada, verifica apenas se o timestamp do servidor é >= ao baseline inicial do próprio servidor
-        if (
-          !forceCheckLatest &&
-          WA_READER_STATE.baselineServerTimestamp > 0 &&
-          item.timestamp > 0 &&
-          item.timestamp < WA_READER_STATE.baselineServerTimestamp - 10 &&
-          !item.followedBotAlert
-        ) {
-          processedIdsSet.add(item.idMessage);
-          continue;
-        }
-
-        if (item.timestamp > WA_READER_STATE.baselineServerTimestamp) {
-          WA_READER_STATE.baselineServerTimestamp = item.timestamp;
-        }
-
-        processedIdsSet.add(item.idMessage);
-        detectedReplies.push({
-          idMessage: item.idMessage,
-          text: item.text,
-          timestamp: item.timestamp,
-          chatId: item.chatId,
-        });
-      }
-
-      if (detectedReplies.length > 0) {
-        savePersistedProcessedWaIds(processedIdsSet);
-      }
-
-      return detectedReplies;
     }
 
     async function sendGreenApiWhatsAppMessage({ settings, text }) {
@@ -1996,6 +2055,10 @@
             isFavorite: Boolean(initialTask.isFavorite),
             estimatedMinutes: Number(initialTask.estimatedMinutes ?? 60),
             customVoiceMessage: initialTask.customVoiceMessage || '',
+            isQuickAlert: Boolean(initialTask.isQuickAlert),
+            repeatAlertCount: Number(initialTask.repeatAlertCount ?? 3),
+            repeatWindowMinutes: Number(initialTask.repeatWindowMinutes ?? 5),
+            sentRepeatShots: Number(initialTask.sentRepeatShots ?? 0),
           });
         } else {
           setForm({
@@ -2025,6 +2088,10 @@
             isFavorite: false,
             estimatedMinutes: 60,
             customVoiceMessage: '',
+            isQuickAlert: false,
+            repeatAlertCount: 3,
+            repeatWindowMinutes: 5,
+            sentRepeatShots: 0,
           });
         }
       }, [isOpen, initialTask]);
@@ -2601,6 +2668,66 @@
                   </label>
                 </div>
 
+                {/* Repetição Programada no WhatsApp como SMS durante Intervalo de 5 Minutos */}
+                <div className="rounded-xl bg-[#FFF7ED] border border-[#FED7AA] p-3.5 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-bold text-[#C2410C]">
+                        📲 Repetição do Alerta no WhatsApp (como SMS)
+                      </div>
+                      <div className="text-[11px] text-[#52525B]">
+                        Configure quantas vezes o alerta se repete durante o intervalo de {form.repeatWindowMinutes || 5} minutos a partir das {form.startTime}.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block font-semibold text-[#18181B] mb-1">
+                        Quantas vezes repetir o envio?
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="30"
+                        value={form.repeatAlertCount ?? 3}
+                        onChange={e =>
+                          setForm({
+                            ...form,
+                            repeatAlertCount: Math.max(1, Math.min(30, Number(e.target.value) || 1)),
+                          })
+                        }
+                        className="w-full rounded-xl bg-white border border-[#E4E4E7] px-3 py-1.5 font-mono font-bold text-[#C2410C]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-[#18181B] mb-1">
+                        Durante o intervalo de (minutos):
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={form.repeatWindowMinutes ?? 5}
+                        onChange={e =>
+                          setForm({
+                            ...form,
+                            repeatWindowMinutes: Math.max(1, Math.min(60, Number(e.target.value) || 5)),
+                          })
+                        }
+                        className="w-full rounded-xl bg-white border border-[#E4E4E7] px-3 py-1.5 font-mono font-bold text-[#18181B]"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-[#52525B]">
+                    Horários dos disparos:{' '}
+                    <strong className="text-[#C2410C]">
+                      {getRepeatShotOffsetsSeconds(form.repeatAlertCount || 3, form.repeatWindowMinutes || 5)
+                        .map((off, i) => `${i + 1}º às ${formatTimeWithOffsetSeconds(form.startTime, off)}`)
+                        .join(' • ')}
+                    </strong>
+                  </div>
+                </div>
+
                 {/* Personalização da mensagem de voz da ligação */}
                 <div>
                   <label className="block text-[11px] font-bold text-tf-muted mb-1">
@@ -2687,8 +2814,19 @@
       lastWhatsAppMonitorEvent,
       onForceReadWhatsAppNow,
       onSimulateWhatsAppReply,
+      onCreateQuickScheduledAlert,
+      onStartRepeatCycleNow,
+      onStopRepeatCycle,
     }) {
       const [simReplyInput, setSimReplyInput] = useState('');
+      const defaultNextMinuteHM = () => {
+        const d = new Date(Date.now() + 60 * 1000);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      };
+      const [quickAlertTitle, setQuickAlertTitle] = useState('');
+      const [quickAlertTime, setQuickAlertTime] = useState(defaultNextMinuteHM);
+      const [quickRepeatCount, setQuickRepeatCount] = useState(3);
+      const [quickWindowMinutes, setQuickWindowMinutes] = useState(5);
       const todayISO = getTodayISO();
       const todayTasks = useMemo(
         () =>
@@ -2855,6 +2993,164 @@
                 )}
               </div>
             </div>
+          </div>
+
+          {/* CRIAR ALERTA PROGRAMADO (WHATSAPP COMO SMS + REPETIÇÃO EM INTERVALO DE 5 MINUTOS) */}
+          <div className="clean-card p-5 sm:p-6 border-l-4 border-l-[#C2410C]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-[#18181B]">
+                  Criar Alerta Programado (WhatsApp como SMS)
+                </h3>
+                <p className="text-xs text-[#52525B]">
+                  Digite o aviso (ex: Ligar para Miguel), escolha a hora do envio e quantas vezes ele vai repetir durante o intervalo de {quickWindowMinutes} minutos.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FFF7ED] border border-[#FED7AA] text-[#C2410C] text-[11px] font-bold self-start sm:self-auto">
+                📲 WhatsApp + SMS ({settings.whatsappNumber || '+55 89 98102-6502'})
+              </span>
+            </div>
+
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                if (!quickAlertTitle.trim()) return;
+                if (onCreateQuickScheduledAlert) {
+                  onCreateQuickScheduledAlert({
+                    title: quickAlertTitle.trim(),
+                    startTime: quickAlertTime || defaultNextMinuteHM(),
+                    repeatAlertCount: Number(quickRepeatCount) || 3,
+                    repeatWindowMinutes: Number(quickWindowMinutes) || 5,
+                    sendImmediately: false,
+                  });
+                  setQuickAlertTitle('');
+                }
+              }}
+              className="space-y-3.5"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                {/* Texto do Alerta */}
+                <div className="md:col-span-5">
+                  <label className="block text-xs font-semibold text-[#18181B] mb-1">
+                    O que o alerta deve avisar? *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={quickAlertTitle}
+                    onChange={e => setQuickAlertTitle(e.target.value)}
+                    placeholder="Ex: Ligar para Miguel"
+                    className="w-full rounded-xl bg-white border border-[#E4E4E7] px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#18181B] focus:outline-none focus:border-[#C2410C]"
+                  />
+                </div>
+
+                {/* Hora do Envio */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-[#18181B] mb-1">
+                    Hora do Envio
+                  </label>
+                  <input
+                    type="time"
+                    value={quickAlertTime}
+                    onChange={e => setQuickAlertTime(e.target.value)}
+                    className="w-full rounded-xl bg-white border border-[#E4E4E7] px-3 py-2 text-xs sm:text-sm font-mono font-bold text-[#C2410C] focus:outline-none focus:border-[#C2410C]"
+                  />
+                </div>
+
+                {/* Quantas vezes se repete */}
+                <div className="md:col-span-3">
+                  <label className="block text-xs font-semibold text-[#18181B] mb-1">
+                    Quantas vezes repetir?
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={quickRepeatCount}
+                      onChange={e => setQuickRepeatCount(Math.max(1, Math.min(30, Number(e.target.value) || 1)))}
+                      className="w-16 rounded-xl bg-white border border-[#E4E4E7] px-2.5 py-2 text-center font-mono text-xs sm:text-sm font-bold text-[#C2410C]"
+                    />
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 5, 10].map(n => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setQuickRepeatCount(n)}
+                          className={`px-2 py-1.5 rounded-lg text-[11px] font-bold border transition ${
+                            Number(quickRepeatCount) === n
+                              ? 'bg-[#C2410C] text-white border-[#C2410C]'
+                              : 'bg-[#FAFAFA] text-[#52525B] border-[#E4E4E7] hover:text-[#18181B]'
+                          }`}
+                        >
+                          {n}x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Intervalo de Minutos (Padrão: 5 min) */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-[#18181B] mb-1">
+                    Intervalo (min)
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={quickWindowMinutes}
+                      onChange={e => setQuickWindowMinutes(Math.max(1, Math.min(60, Number(e.target.value) || 5)))}
+                      className="w-full rounded-xl bg-white border border-[#E4E4E7] px-3 py-2 text-center font-mono text-xs sm:text-sm font-bold text-[#18181B]"
+                    />
+                    <span className="text-xs text-[#52525B] font-semibold">min</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Prévia dos Disparos + Botões */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+                <div className="text-xs text-[#52525B]">
+                  <span>Programação dos disparos: </span>
+                  <strong className="text-[#C2410C]">
+                    {getRepeatShotOffsetsSeconds(quickRepeatCount, quickWindowMinutes)
+                      .map((off, i) => `${i + 1}º às ${formatTimeWithOffsetSeconds(quickAlertTime, off)}`)
+                      .join(' • ')}
+                  </strong>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="submit"
+                    className="btn-primary px-4 py-2.5 text-xs sm:text-sm inline-flex items-center gap-1.5"
+                  >
+                    <span>⏰ Programar para {quickAlertTime}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const titleToUse = quickAlertTitle.trim() || 'Ligar para Miguel';
+                      const now = new Date();
+                      const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                      if (onCreateQuickScheduledAlert) {
+                        onCreateQuickScheduledAlert({
+                          title: titleToUse,
+                          startTime: nowHM,
+                          repeatAlertCount: Number(quickRepeatCount) || 3,
+                          repeatWindowMinutes: Number(quickWindowMinutes) || 5,
+                          sendImmediately: true,
+                        });
+                        setQuickAlertTitle('');
+                      }
+                    }}
+                    className="btn-secondary px-4 py-2.5 text-xs sm:text-sm inline-flex items-center gap-1.5"
+                  >
+                    <span>📲 Disparar Agora + Repetir ({quickRepeatCount}x em {quickWindowMinutes}m)</span>
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
 
           {/* Indicadores do Dia (Clean) */}
@@ -3065,6 +3361,11 @@
                                     🔁 Recorrente
                                   </span>
                                 )}
+                                {(task.repeatAlertCount > 0 || task.isQuickAlert) && (
+                                  <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#FFF7ED] text-[#C2410C] border border-[#FED7AA]">
+                                    📲 Repetição SMS/Whats: {task.sentRepeatShots || 0}/{task.repeatAlertCount || 3}x em {task.repeatWindowMinutes || 5} min
+                                  </span>
+                                )}
                                 {task.isFavorite && <span title="Favorita">📌</span>}
                               </div>
 
@@ -3144,6 +3445,24 @@
                                 title="Não foi concluída hoje? Clique para enviá-la automaticamente ao TOPO da lista de amanhã!"
                               >
                                 ↪️ Topo Amanhã 📌
+                              </button>
+                            )}
+                            {task.status !== 'completed' && onStartRepeatCycleNow && (
+                              <button
+                                onClick={() => onStartRepeatCycleNow(task)}
+                                className="px-2.5 py-1.5 rounded-xl bg-[#FFF7ED] hover:bg-[#C2410C] text-[#C2410C] hover:text-white border border-[#FED7AA] text-xs font-bold transition"
+                                title={`Disparar agora no WhatsApp/SMS e repetir ${task.repeatAlertCount || 3}x durante ${task.repeatWindowMinutes || 5} minutos`}
+                              >
+                                📲 Repetir ({task.repeatAlertCount || 3}x / {task.repeatWindowMinutes || 5}m)
+                              </button>
+                            )}
+                            {task.activeRepeatRunning && onStopRepeatCycle && (
+                              <button
+                                onClick={() => onStopRepeatCycle(task.id)}
+                                className="px-2.5 py-1.5 rounded-xl bg-zinc-200 hover:bg-zinc-300 text-[#18181B] text-xs font-bold transition"
+                                title="Parar disparos repetidos desta atividade"
+                              >
+                                ⏹️ Parar
                               </button>
                             )}
                             <button
@@ -5272,8 +5591,206 @@
       );
 
       // =======================================================================
+      // DISPARO PROGRAMADO COM REPETIÇÃO EM INTERVALO DE 5 MINUTOS (WHATSAPP COMO SMS)
+      // =======================================================================
+      const handleTriggerQuickRepeatShot = useCallback(
+        async (task, shotNumber = 1, totalShots = 3, windowMinutes = 5) => {
+          if (!task) return;
+          lastAlertedTaskIdRef.current = task.id;
+          phoneAudio.playNotificationChime();
+
+          const stageLabel = `ALERTA SMS [${shotNumber}/${totalShots}] (${windowMinutes} min)`;
+          const customText = buildQuickSmsStyleWhatsAppText(task, shotNumber, totalShots, windowMinutes);
+
+          let whatsappSent = false;
+          let smsSent = false;
+
+          try {
+            const waRes = await sendRealWhatsAppReminder({
+              settings: state.settings,
+              task,
+              stageLabel,
+              customText,
+            });
+            if (!waRes.simulated) {
+              whatsappSent = true;
+            }
+          } catch (err) {}
+
+          try {
+            const smsRes = await sendRealSmsReminder({
+              settings: state.settings,
+              task,
+            });
+            if (!smsRes.simulated) smsSent = true;
+          } catch (err) {}
+
+          const nowStr = new Date().toLocaleTimeString('pt-BR');
+          const newLog = {
+            id: 'log-rep-' + Date.now() + '-' + shotNumber,
+            taskId: task.id,
+            taskTitle: task.title,
+            channel: 'whatsapp',
+            stageLabel: `📲 ${stageLabel}`,
+            status: whatsappSent || smsSent ? 'sent_real_api' : 'delivered_multichannel',
+            userResponse: `Disparo ${shotNumber} de ${totalShots} no intervalo de ${windowMinutes} min`,
+            timestamp: `Hoje, ${nowStr}`,
+          };
+
+          setState(prev => ({
+            ...prev,
+            tasks: prev.tasks.map(t =>
+              t.id === task.id
+                ? {
+                    ...t,
+                    status: t.status === 'pending' ? 'notified' : t.status,
+                    sentRepeatShots: shotNumber,
+                    activeRepeatRunning: shotNumber < totalShots && !t.repeatStopped,
+                  }
+                : t
+            ),
+            notificationLogs: [newLog, ...prev.notificationLogs],
+          }));
+
+          showToast(
+            `📲 Disparo [${shotNumber}/${totalShots}] enviado no WhatsApp/SMS: "${task.title}"`,
+            'success'
+          );
+        },
+        [state.settings, showToast]
+      );
+
+      const handleCreateQuickScheduledAlert = useCallback(
+        ({ title, startTime, repeatAlertCount = 3, repeatWindowMinutes = 5, sendImmediately = false }) => {
+          const now = new Date();
+          const nowSecsTotal = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+          const cleanCount = Math.max(1, Math.min(30, Number(repeatAlertCount) || 3));
+          const cleanWin = Math.max(1, Math.min(60, Number(repeatWindowMinutes) || 5));
+          const alertId = 'tf-qalert-' + Date.now();
+          const effectiveStart =
+            startTime ||
+            `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+          const newTask = {
+            id: alertId,
+            title,
+            description: `Alerta programado (${cleanCount}x durante ${cleanWin} min no WhatsApp/SMS)`,
+            date: getTodayISO(),
+            startTime: effectiveStart,
+            endTime: addMinutesToTime(effectiveStart, cleanWin),
+            allDay: false,
+            category: 'urgent',
+            priority: 'urgent',
+            status: sendImmediately ? 'notified' : 'pending',
+            location: 'WhatsApp + SMS',
+            attachments: [],
+            observations: [],
+            lastWhatsAppReply: '',
+            recurrence: 'none',
+            leadTimeMinutes: 5,
+            notifyWhatsApp: true,
+            notifyTelegram: true,
+            notifySms: true,
+            notifyVoiceCall: true,
+            requireConfirmation: true,
+            isFavorite: true,
+            isQuickAlert: true,
+            repeatAlertCount: cleanCount,
+            repeatWindowMinutes: cleanWin,
+            sentRepeatShots: sendImmediately ? 1 : 0,
+            activeRepeatRunning: sendImmediately && cleanCount > 1,
+            repeatStopped: false,
+            exactStartSeconds: sendImmediately ? nowSecsTotal : null,
+            estimatedMinutes: cleanWin,
+          };
+
+          setState(prev => ({
+            ...prev,
+            tasks: [newTask, ...prev.tasks],
+          }));
+
+          if (sendImmediately) {
+            autoTriggeredStagesRef.current[`${alertId}_repeat_shot_0`] = true;
+            handleTriggerQuickRepeatShot(newTask, 1, cleanCount, cleanWin);
+          } else {
+            const scheduleText = getRepeatShotOffsetsSeconds(cleanCount, cleanWin)
+              .map((off, i) => `${i + 1}º às ${formatTimeWithOffsetSeconds(effectiveStart, off)}`)
+              .join(' • ');
+
+            sendGreenApiWhatsAppMessage({
+              settings: state.settings,
+              text:
+                `⏰ *MEU CONTROLE MAX – ALERTA PROGRAMADO!*\n\n` +
+                `🔔 *Alerta:* ${title}\n` +
+                `⏰ *Hora do 1º Envio:* ${effectiveStart}\n` +
+                `🔁 *Repetição:* ${cleanCount}x durante o intervalo de ${cleanWin} minutos\n` +
+                `📲 *Horários dos disparos:* ${scheduleText}`,
+            }).catch(() => {});
+
+            showToast(
+              `⏰ Alerta "${title}" programado para ${effectiveStart} (${cleanCount}x em ${cleanWin} min no WhatsApp/SMS)!`,
+              'success'
+            );
+          }
+        },
+        [state.settings, handleTriggerQuickRepeatShot, showToast]
+      );
+
+      const handleStartRepeatCycleNow = useCallback(
+        (task) => {
+          if (!task) return;
+          const now = new Date();
+          const nowSecsTotal = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+          const nowHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          const totalShots = Math.max(1, Number(task.repeatAlertCount) || 3);
+          const winMins = Math.max(1, Number(task.repeatWindowMinutes) || 5);
+
+          // Limpa chaves anteriores desta tarefa para permitir novo ciclo completo
+          Object.keys(autoTriggeredStagesRef.current).forEach(k => {
+            if (k.startsWith(`${task.id}_repeat_shot_`)) {
+              delete autoTriggeredStagesRef.current[k];
+            }
+          });
+          autoTriggeredStagesRef.current[`${task.id}_repeat_shot_0`] = true;
+
+          const updatedTask = {
+            ...task,
+            startTime: nowHM,
+            exactStartSeconds: nowSecsTotal,
+            repeatAlertCount: totalShots,
+            repeatWindowMinutes: winMins,
+            sentRepeatShots: 1,
+            repeatStopped: false,
+            activeRepeatRunning: totalShots > 1,
+          };
+
+          setState(prev => ({
+            ...prev,
+            tasks: prev.tasks.map(t => (t.id === task.id ? updatedTask : t)),
+          }));
+
+          handleTriggerQuickRepeatShot(updatedTask, 1, totalShots, winMins);
+        },
+        [handleTriggerQuickRepeatShot]
+      );
+
+      const handleStopRepeatCycle = useCallback(
+        (taskId) => {
+          setState(prev => ({
+            ...prev,
+            tasks: prev.tasks.map(t =>
+              t.id === taskId ? { ...t, repeatStopped: true, activeRepeatRunning: false } : t
+            ),
+          }));
+          showToast('⏹️ Repetição de disparos encerrada para este alerta.', 'info');
+        },
+        [showToast]
+      );
+
+      // =======================================================================
       // MONITORAMENTO AUTOMÁTICO SEGUNDO A SEGUNDO:
-      // DISPARA EM: 5 MIN, 3 MIN, 2 MIN, 1 MIN ANTES, NO INÍCIO E APÓS O INÍCIO!
+      // 1) DISPARA REPETIÇÕES PROGRAMADAS (N VEZES EM INTERVALO DE 5 MINUTOS)
+      // 2) DISPARA CADÊNCIA PREVENTIVA (5M, 3M, 2M, 1M, INÍCIO E PÓS-INÍCIO)
       // =======================================================================
       useEffect(() => {
         const todayISO = getTodayISO();
@@ -5288,6 +5805,33 @@
           const [th, tm] = (task.startTime || '09:00').split(':').map(Number);
           const taskStartSecs = th * 3600 + tm * 60;
           const diffSeconds = taskStartSecs - nowSecsTotal;
+
+          // 1. Motor de Repetição Programada durante o intervalo de X minutos (ex: 3x ou 5x em 5 minutos a partir da hora programada)
+          const repeatCount = Number(task.repeatAlertCount) || 0;
+          if ((task.isQuickAlert || repeatCount > 0) && !task.repeatStopped) {
+            const totalShots = Math.max(1, repeatCount || 3);
+            const winMins = Math.max(1, Number(task.repeatWindowMinutes) || 5);
+            const baseStartSecs =
+              typeof task.exactStartSeconds === 'number' ? task.exactStartSeconds : taskStartSecs;
+            const elapsedSinceStart = nowSecsTotal - baseStartSecs;
+
+            if (elapsedSinceStart >= 0 && elapsedSinceStart <= winMins * 60 + 120) {
+              const offsets = getRepeatShotOffsetsSeconds(totalShots, winMins);
+              offsets.forEach((offsetSec, idx) => {
+                const shotKey = `${task.id}_repeat_shot_${idx}`;
+                if (
+                  elapsedSinceStart >= offsetSec &&
+                  elapsedSinceStart <= offsetSec + 90 &&
+                  !autoTriggeredStagesRef.current[shotKey]
+                ) {
+                  autoTriggeredStagesRef.current[shotKey] = true;
+                  handleTriggerQuickRepeatShot(task, idx + 1, totalShots, winMins);
+                }
+              });
+            }
+            // Se for um Alerta Rápido estilo SMS, usa exclusivamente os disparos programados do intervalo escolhido
+            if (task.isQuickAlert) return;
+          }
 
           // Ignora tarefas antigas de demonstração que já passaram há mais de 10 minutos
           if (diffSeconds < -600) return;
@@ -5341,7 +5885,7 @@
             }
           }
         });
-      }, [nowTime, state.tasks, handleTriggerTelegramAlert, showToast]);
+      }, [nowTime, state.tasks, handleTriggerTelegramAlert, handleTriggerQuickRepeatShot, showToast]);
 
       // Cria uma tarefa agendada para daqui a 5 minutos E permite testar toda a cadência (5m -> 3m -> 2m -> 1m -> Início -> Pós-Início)
       const handleScheduleAutoFiveMinDemo = useCallback(() => {
@@ -5498,6 +6042,8 @@
                 confirmedAt: nowStr,
                 lastWhatsAppReply: cleanRawReply,
                 observations: nextObs,
+                repeatStopped: true,
+                activeRepeatRunning: false,
               };
             }),
             notificationLogs: [
@@ -5607,6 +6153,8 @@
                 confirmedAt: t.confirmedAt || nowStr,
                 lastWhatsAppReply: cleanRawReply,
                 observations: nextObs,
+                repeatStopped: true,
+                activeRepeatRunning: false,
               };
             }),
             notificationLogs: [
@@ -6149,15 +6697,40 @@
           const chatIds = getBrazilWhatsAppChatIds(targetPhone);
 
           let latestUserMsg = null;
-          for (const chatId of chatIds) {
-            const res = await fetch(`${baseHost}/waInstance${idInst}/getChatHistory/${tokInst}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chatId, count: 10 }),
-            });
-            if (res.ok) {
-              const history = await res.json();
-              if (Array.isArray(history)) {
+
+          // 1. Consulta lastIncomingMessages SEM query string (retorna 200 OK imediato sem 401/429)
+          try {
+            const inRes = await fetch(`${baseHost}/waInstance${idInst}/lastIncomingMessages/${tokInst}`);
+            if (inRes.ok) {
+              const rawIn = await inRes.json();
+              const inList = Array.isArray(rawIn) ? rawIn : rawIn?.value || [];
+              for (const msg of inList) {
+                if (!msg || !msg.idMessage) continue;
+                const matchChat =
+                  matchesUserPhoneChatId(msg.chatId, targetPhone) ||
+                  matchesUserPhoneChatId(msg.senderId, targetPhone);
+                if (!matchChat) continue;
+                const text = extractGreenApiMessageText(msg);
+                if (text && !isAutomatedBotMessage(text, msg.idMessage)) {
+                  if (!latestUserMsg || (msg.timestamp || 0) > (latestUserMsg.timestamp || 0)) {
+                    latestUserMsg = { idMessage: msg.idMessage, text, timestamp: msg.timestamp || 0 };
+                  }
+                }
+              }
+            }
+          } catch (e) {}
+
+          // 2. Fallback: consulta getChatHistory apenas no JID principal sem 9º dígito
+          if (!latestUserMsg && chatIds.length > 0) {
+            try {
+              const res = await fetch(`${baseHost}/waInstance${idInst}/getChatHistory/${tokInst}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chatId: chatIds[0], count: 10 }),
+              });
+              if (res.ok) {
+                const rawHist = await res.json();
+                const history = Array.isArray(rawHist) ? rawHist : rawHist?.value || [];
                 for (const msg of history) {
                   const text = extractGreenApiMessageText(msg);
                   if (text && !isAutomatedBotMessage(text, msg.idMessage)) {
@@ -6168,7 +6741,7 @@
                   }
                 }
               }
-            }
+            } catch (e) {}
           }
 
           if (latestUserMsg && latestUserMsg.text) {
@@ -6712,6 +7285,9 @@
                   lastWhatsAppMonitorEvent={lastWhatsAppMonitorEvent}
                   onForceReadWhatsAppNow={handleForceReadWhatsAppNow}
                   onSimulateWhatsAppReply={processIncomingWhatsAppReplyText}
+                  onCreateQuickScheduledAlert={handleCreateQuickScheduledAlert}
+                  onStartRepeatCycleNow={handleStartRepeatCycleNow}
+                  onStopRepeatCycle={handleStopRepeatCycle}
                   onSelectDateInCalendar={dt => {
                     setSelectedCalendarDate(dt);
                     setActiveTab('calendar');
