@@ -831,9 +831,24 @@
       const cleaned = String(rawText || '').trim();
       if (!cleaned) return null;
 
-      // 0A. Pedido de Resumo / Agenda do Dia (ex: "resumo", "agenda", "relatorio", "tarefas", "o que tenho hoje", "checklist")
+      // 0A. Pedido de Ajuda / Menu de Comandos (ex: "ajuda", "comandos", "menu", "como usar", "o que voce faz")
       if (
-        /^(resumo|agenda|relat[oó]rio|tarefas|compromissos|lista|hoje|check-?list|o\s+que\s+tenho\s+hoje|quais\s+as\s+tarefas|minha\s+agenda)[\s.!?]*$/i.test(
+        /^(ajuda|help|comandos|menu|como\s+usar|como\s+funciona|o\s+que\s+voc[eê]\s+faz|op[cç][oõ]es)[\s.!?]*$/i.test(
+          cleaned
+        )
+      ) {
+        return {
+          action: 'help',
+          raw: cleaned,
+        };
+      }
+
+      // 0B. Pedido de Resumo / Consulta da Agenda (ex: "resumo", "agenda", "o que tenho hoje", "quais os compromissos", "tem o que pra hoje", "qual a próxima tarefa")
+      if (
+        /^(resumo|agenda|relat[oó]rio|tarefas|compromissos|lista|hoje|check-?list|minha\s+agenda|ver\s+agenda|mostrar\s+agenda|mostrar\s+tarefas|resumo\s+do\s+dia)[\s.!?]*$/i.test(
+          cleaned
+        ) ||
+        /\b(o\s+que\s+(?:eu\s+)?tenho\s+(?:para\s+|pra\s+)?hoje|quais\s+(?:s[aã]o\s+)?(?:as\s+tarefas|os\s+compromissos)|tem\s+o\s+que\s+(?:para\s+|pra\s+)?hoje|qual\s+a\s+pr[oó]xima\s+(?:tarefa|atividade)|como\s+est[aá]\s+minha\s+agenda|me\s+manda\s+a\s+agenda)\b/i.test(
           cleaned
         )
       ) {
@@ -843,25 +858,61 @@
         };
       }
 
-      // 0B. Criar nova tarefa ou alerta direto pelo WhatsApp (ex: "Agendar vistoria às 14:30", "Alerta ligar para Miguel 11:00", "Lembrar de ligar 11:00")
-      const createMatch = cleaned.match(
-        /^(agendar|agende|criar|crie|nova\s+tarefa|novo\s+compromisso|nova\s+atividade|novo\s+alerta|alerta|alertar|aviso|avisar|programar|programe|nova|novo|cadastrar|cadastre|marcar|marque|me\s+lembre|lembrar|lembrete)\b[\s,.:;-]+(.+)$/i
+      // 0C. Mudar / Alterar Horário de uma tarefa existente (ex: "mudar horário para 16:00", "passar reunião para as 17h", "remarcar para 15:30", "alterar para 14:00")
+      const rescheduleMatch = cleaned.match(
+        /^(?:por\s+favor\s+)?(mudar|mude|muda|alterar|altere|altera|remarcar|remarque|remarca|passar|passe|passa|transferir|transfere|trocar\s+hor[aá]rio|mudar\s+hor[aá]rio|alterar\s+hor[aá]rio)\b\s*(.*?)\s*(?:para\s+as|para\s+às|para|pra|às|as)\s*(\d{1,2})(?:[:h](\d{2}))?\s*(?:h|horas?)?[\s.!?]*$/i
       );
-      if (createMatch && createMatch[2] && createMatch[2].trim().length >= 3) {
+      if (rescheduleMatch && rescheduleMatch[3]) {
+        const h = parseInt(rescheduleMatch[3], 10);
+        const m = rescheduleMatch[4] ? parseInt(rescheduleMatch[4], 10) : 0;
+        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+          const newTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+          const targetHint = (rescheduleMatch[2] || '')
+            .replace(/^(?:o\s+hor[aá]rio\s+|a\s+hora\s+|a\s+tarefa\s+|a\s+atividade\s+|o\s+compromisso\s+|o\s+alerta\s+|de\s+|da\s+|do\s+)+/i, '')
+            .trim();
+          return {
+            action: 'reschedule_time',
+            newTime,
+            targetHint,
+            raw: cleaned,
+          };
+        }
+      }
+
+      // 0D. Criar nova tarefa, compromisso ou alerta direto pelo WhatsApp (sobre QUALQUER assunto!)
+      const hasExplicitCreatePrefix =
+        /^(?:por\s+favor\s+|pfv\s+|oi\s+|ol[aá]\s+)?(fa[cç]a\s+(?:uma\s+)?agenda|fazer\s+(?:uma\s+)?agenda|faz\s+(?:uma\s+)?agenda|coloca(?:r)?\s+na\s+agenda|coloque\s+na\s+agenda|bota(?:r)?\s+na\s+agenda|adiciona(?:r)?\s+na\s+agenda|adicione\s+na\s+agenda|inclui(?:r)?\s+na\s+agenda|agendar|agende|agenda\s+para|agenda\s+pra|agenda\s+a[ií]|criar|crie|cria\s+a[ií]|nova\s+tarefa|novo\s+compromisso|nova\s+atividade|novo\s+alerta|criar\s+alerta|fazer\s+alerta|alerta|alertar|aviso|avisar|me\s+avise|me\s+avisa|programar|programe|programa\s+a[ií]|cadastrar|cadastre|marcar|marque|marca\s+a[ií]|me\s+lembre|me\s+lembra|lembrar(?:-me)?|lembrete|quero\s+agendar|quero\s+criar|quero\s+marcar|preciso\s+agendar|preciso\s+lembrar|tenho\s+que)\b[\s,.:;-]*(.+)$/i.exec(
+          cleaned
+        );
+      if (hasExplicitCreatePrefix && hasExplicitCreatePrefix[2] && hasExplicitCreatePrefix[2].trim().length >= 2) {
         return {
           action: 'create_task',
-          commandText: createMatch[2].trim(),
+          commandText: cleaned,
           raw: cleaned,
         };
       }
 
-      // 1. Adiamento (ex: "adiar", "adiar 15", "depois", "daqui 10 min", "mais 15 min", "espera 10")
+      // Também reconhece quando "lembrete as 15:00", "alerta às 14:00", "na agenda às 15:00" aparece no meio ou final da frase
+      if (
+        /\b(fa[cç]a\s+(?:uma\s+)?agenda|fazer\s+(?:uma\s+)?agenda|coloca(?:r)?\s+na\s+agenda|bota(?:r)?\s+na\s+agenda|adiciona(?:r)?\s+na\s+agenda|lembrete\s+(?:para\s+as|às|as|\d)|alerta\s+(?:para\s+as|às|as|\d)|me\s+lembr(?:e|a)\s+(?:de|às|as)|me\s+avis(?:e|a)\s+(?:de|às|as))\b/i.test(
+          cleaned
+        )
+      ) {
+        return {
+          action: 'create_task',
+          commandText: cleaned,
+          raw: cleaned,
+        };
+      }
+
+      // 1. Adiamento (ex: "adiar", "adiar 15", "depois", "daqui 10 min", "mais 15 min", "espera 10", "me avisa de novo em 10 min")
       const snoozeMatch =
-        cleaned.match(/^(adiar|adia|depois|atrasar|espera|aguarda)\b(?:\s*(\d+))?(?:[\s,.:;-]*(.*))?$/i) ||
-        cleaned.match(/^(?:daqui\s+a?\s*|mais\s+)(\d+)\s*(?:min|minutos?|m)\b(?:[\s,.:;-]*(.*))?$/i);
+        cleaned.match(/^(adiar|adia|depois|atrasar|espera|aguarda)\b(?:\s*(?:por\s+|em\s+|mais\s+)?(\d+))?(?:[\s,.:;-]*(.*))?$/i) ||
+        cleaned.match(/^(?:daqui\s+a?\s*|mais\s+|em\s+)(\d+)\s*(?:min|minutos?|m)\b[\s.!?]*$/i) ||
+        cleaned.match(/^(?:me\s+(?:lembra|avisa|chama)\s+(?:de\s+novo\s+)?(?:daqui\s+a?\s*|em\s+))(\d+)\s*(?:min|minutos?|m)\b/i);
       if (snoozeMatch) {
         const mins = Number(snoozeMatch[2] || snoozeMatch[1]) || 10;
-        const extra = (snoozeMatch[3] || snoozeMatch[2] || '').replace(/^\d+\s*(?:min|minutos?|m)?\s*/i, '').trim();
+        const extra = (snoozeMatch[3] || '').replace(/^\d+\s*(?:min|minutos?|m)?\s*/i, '').trim();
         return {
           action: 'snooze',
           minutes: mins > 0 && mins <= 240 ? mins : 10,
@@ -870,8 +921,10 @@
         };
       }
 
-      // 2. Cancelamento (ex: "cancelar", "desmarcar", "cancelado")
-      const cancelMatch = cleaned.match(/^(cancelar|cancela|desmarcar|cancelad[oa])\b(?:[\s,.:;-]*(.*))?$/i);
+      // 2. Cancelamento / Exclusão (ex: "cancelar", "desmarcar", "cancelado", "apagar", "excluir", "remover")
+      const cancelMatch = cleaned.match(
+        /^(cancelar|cancela|desmarcar|desmarca|cancelad[oa]|apagar|apaga|excluir|exclui|remover|remove|deletar|deleta)\b(?:[\s,.:;-]*(.*))?$/i
+      );
       if (cancelMatch) {
         return {
           action: 'cancel',
@@ -881,9 +934,8 @@
       }
 
       // 2.5. NÃO CONCLUÍDA -> Jogar automaticamente para o TOPO do dia seguinte (Check-list)
-      // Exemplos: "não", "nao", "n", "3", "não concluído", "nao fiz", "ainda não", "pendente", "amanhã", "não deu tempo", "deixa pra amanhã", "❌"
       const notCompletedMatch = cleaned.match(
-        /^(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]|n[aã]o\s+foi\s+feit[oa]|n[aã]o\s+fiz|ainda\s+n[aã]o|n[aã]o\s+deu(?:\s+tempo)?|sem\s+tempo|ficou\s+pendente|pendente|deixar?\s+p(?:ara|ra)\s+amanh[aã]|fica\s+p(?:ara|ra)\s+amanh[aã]|jogar?\s+p(?:ara|ra)\s+amanh[aã]|passar?\s+p(?:ara|ra)\s+amanh[aã]|amanh[aã]|hoje\s+n[aã]o\s+d[aá]|n[aã]o|nao|nn|n|3|❌+|❎+)\b(?:[\s,.:;-]*(.*))?$/i
+        /^(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]|n[aã]o\s+foi\s+feit[oa]|n[aã]o\s+fiz|ainda\s+n[aã]o|n[aã]o\s+deu(?:\s+tempo)?|sem\s+tempo|ficou\s+pendente|pendente|deixar?\s+p(?:ara|ra)\s+amanh[aã]|fica\s+p(?:ara|ra)\s+amanh[aã]|jogar?\s+p(?:ara|ra)\s+amanh[aã]|passar?\s+p(?:ara|ra)\s+amanh[aã]|hoje\s+n[aã]o\s+(?:d[aá]|vai\s+dar)|n[aã]o|nao|nn|n|3|❌+|❎+)\b(?:[\s,.:;-]*(.*))?$/i
       );
       if (notCompletedMatch) {
         return {
@@ -893,7 +945,7 @@
         };
       }
       if (
-        /\b(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|n[aã]o\s+consegui|n[aã]o\s+deu\s+tempo|n[aã]o\s+fiz|ficou\s+pendente|deixar?\s+p(?:ara|ra)\s+amanh[aã]|fica\s+p(?:ara|ra)\s+amanh[aã])\b/i.test(
+        /\b(n[aã]o\s+foi\s+conclu[ií]d[oa]|n[aã]o\s+conclu[ií]d[oa]|n[aã]o\s+consegui|n[aã]o\s+deu\s+tempo|n[aã]o\s+fiz|ficou\s+pendente|deixar?\s+p(?:ara|ra)\s+amanh[aã]|fica\s+p(?:ara|ra)\s+amanh[aã]|jogar?\s+p(?:ara|ra)\s+amanh[aã]|passar?\s+p(?:ara|ra)\s+amanh[aã])\b/i.test(
           cleaned
         )
       ) {
@@ -904,9 +956,9 @@
         };
       }
 
-      // 3. Conclusão pura da Atividade (ex: "concluido", "concluído", "feito", "já fiz", "fiz", "finalizado", "pronto", "terminei", "resolvido", "2", "🏆")
+      // 3. Conclusão pura da Atividade (qualquer assunto: "concluido", "feito", "já fiz", "já liguei", "já paguei", "já pedi", "já comprei", "já enviei", "pago", "resolvido", "2", "🏆")
       const pureCompleteMatch = cleaned.match(
-        /^(conclu[ií]d[oa]s?|concluir|conclu[ií]|finalizad[oa]s?|finalizar|finalizei|feit[oa]s?|j[aá]\s+fiz|fiz|j[aá]\s+foi\s+feit[oa]|pront[oa]s?|t[aá]\s+pront[oa]|j[aá]\s+t[aá]\s+pront[oa]|terminei|j[aá]\s+terminei|terminad[oa]s?|resolvid[oa]s?|resolvi|encerrad[oa]s?|executad[oa]s?|executei|realizad[oa]s?|realizei|entregue|entreguei|cumprid[oa]s?|j[aá]\s+olhei|j[aá]\s+verifiquei|verificad[oa]|2|🏆+|✔️+|☑️+)[\s.!?]*$/i
+        /^(conclu[ií]d[oa]s?|concluir|conclu[ií]|finalizad[oa]s?|finalizar|finalizei|feit[oa]s?|t[aá]\s+feit[oa]|j[aá]\s+fiz|fiz|j[aá]\s+foi\s+feit[oa]|acabei\s+de\s+fazer|pront[oa]s?|t[aá]\s+pront[oa]|j[aá]\s+t[aá]\s+pront[oa]|terminei|j[aá]\s+terminei|terminad[oa]s?|resolvid[oa]s?|resolvi|j[aá]\s+resolvi|encerrad[oa]s?|executad[oa]s?|executei|realizad[oa]s?|realizei|entregue|entreguei|j[aá]\s+entreguei|cumprid[oa]s?|j[aá]\s+olhei|j[aá]\s+verifiquei|verificad[oa]|j[aá]\s+liguei|acabei\s+de\s+ligar|j[aá]\s+pedi|acabei\s+de\s+pedir|j[aá]\s+paguei|acabei\s+de\s+pagar|pago|t[aá]\s+pago|j[aá]\s+comprei|comprado|j[aá]\s+enviei|enviado|j[aá]\s+mandei|j[aá]\s+falei|j[aá]\s+conversei|j[aá]\s+avisei|j[aá]\s+fui|j[aá]\s+tomei|j[aá]\s+busquei|j[aá]\s+peguei|2|🏆+|✔️+|☑️+)[\s.!?]*$/i
       );
       if (pureCompleteMatch) {
         return {
@@ -916,9 +968,9 @@
         };
       }
 
-      // 4. Conclusão + Observação (ex: "concluido, marmitas entregues", "feito - equipe alimentada", "já fiz tudo certo")
+      // 4. Conclusão + Observação / Assunto (ex: "já liguei para o miguel", "já paguei o boleto", "concluido, marmitas entregues", "feito - tudo certo")
       const completeWithNoteMatch = cleaned.match(
-        /^(conclu[ií]d[oa]s?|concluir|conclu[ií]|finalizad[oa]s?|finalizar|finalizei|feit[oa]s?|j[aá]\s+fiz|fiz|j[aá]\s+foi\s+feit[oa]|pront[oa]s?|terminei|j[aá]\s+terminei|terminad[oa]s?|resolvid[oa]s?|resolvi|encerrad[oa]s?|executad[oa]s?|executei|realizad[oa]s?|realizei|entregue|entreguei)\b[\s,.:;-]+(.+)$/i
+        /^(conclu[ií]d[oa]s?|concluir|conclu[ií]|finalizad[oa]s?|finalizar|finalizei|feit[oa]s?|t[aá]\s+feit[oa]|j[aá]\s+fiz|fiz|j[aá]\s+foi\s+feit[oa]|acabei\s+de\s+fazer|pront[oa]s?|terminei|j[aá]\s+terminei|terminad[oa]s?|resolvid[oa]s?|resolvi|j[aá]\s+resolvi|encerrad[oa]s?|executad[oa]s?|executei|realizad[oa]s?|realizei|entregue|entreguei|j[aá]\s+entreguei|j[aá]\s+liguei|acabei\s+de\s+ligar|j[aá]\s+pedi|acabei\s+de\s+pedir|j[aá]\s+paguei|acabei\s+de\s+pagar|pago|j[aá]\s+comprei|j[aá]\s+enviei|j[aá]\s+mandei|j[aá]\s+falei|j[aá]\s+conversei|j[aá]\s+avisei|j[aá]\s+fui|j[aá]\s+tomei|j[aá]\s+busquei|j[aá]\s+peguei)\b[\s,.:;-]+(.+)$/i
       );
       if (completeWithNoteMatch) {
         return {
@@ -928,9 +980,9 @@
         };
       }
 
-      // 5. Frase natural contendo expressão de conclusão (ex: "já foi concluido", "atividade concluída", "tudo feito por aqui")
+      // 5. Frase natural contendo expressão de conclusão em qualquer parte (ex: "já foi concluido", "atividade concluída", "tudo feito por aqui")
       if (
-        /\b(conclu[ií]d[oa]s?|finalizad[oa]s?|j[aá]\s+conclu[ií]|j[aá]\s+fiz|j[aá]\s+terminei|j[aá]\s+foi\s+feit[oa]|tudo\s+feit[oa]|atividade\s+conclu[ií]da|tarefa\s+conclu[ií]da|j[aá]\s+resolvi)\b/i.test(
+        /\b(conclu[ií]d[oa]s?|finalizad[oa]s?|j[aá]\s+conclu[ií]|j[aá]\s+fiz|j[aá]\s+terminei|j[aá]\s+foi\s+feit[oa]|tudo\s+feit[oa]|atividade\s+conclu[ií]da|tarefa\s+conclu[ií]da|j[aá]\s+resolvi|j[aá]\s+paguei|j[aá]\s+liguei|j[aá]\s+pedi|j[aá]\s+comprei|j[aá]\s+enviei)\b/i.test(
           cleaned
         )
       ) {
@@ -957,9 +1009,9 @@
         };
       }
 
-      // 7. Confirmação seguida de observação (ex: "OK, verificar marmitas do turno B", "Tá bom já estou indo", "Sim, pedir água")
+      // 7. Confirmação seguida de observação (ex: "OK, verificar marmitas do turno B", "Tá bom já estou indo", "Sim, falar com contador")
       const confirmWithNoteMatch = cleaned.match(
-        /^(ok+|okay|okey|sim|confirmo|confirmad[oa]|confirmar|ciente|certo|certinho|t[aá]\s+bom|t[aá]\s+certo|beleza|blz|recebid[oa]|recebi|j[aá]\s+vi|entendi|t[oô]\s+indo|estou\s+indo|1)\b[\s,.:;-]+(.+)$/i
+        /^(ok+|okay|okey|sim|confirmo|confirmad[oa]|confirmar|ciente|certo|certinho|t[aá]\s+bom|t[aá]\s+certo|beleza|blz|recebid[oa]|recebi|j[aá]\s+vi|entendi|t[oô]\s+indo|estou\s+indo|pode\s+deixar|1)\b[\s,.:;-]+(.+)$/i
       );
       if (confirmWithNoteMatch) {
         return {
@@ -969,8 +1021,20 @@
         };
       }
 
-      // 8. Prefixo explícito de observação (ex: "Obs: comprar frutas", "Nota: ligar para fornecedor")
-      const obsMatch = cleaned.match(/^(obs|observa[cç][aã]o|nota|anota|anotar|lembrete|adicionar|add)\b[\s,.:;-]*(.+)$/i);
+      // 8.Correção/Renomeação explícita (ex: "corrigir: ligar para Dr. Miguel", "mudar nome para Reunião Diretoria")
+      const renameMatch = cleaned.match(
+        /^(corrigir|corre[cç][aã]o|renomear|mudar\s+nome\s+para|alterar\s+nome\s+para|na\s+verdade\s+[eé])\b[\s,.:;-]*(.+)$/i
+      );
+      if (renameMatch && renameMatch[2]) {
+        return {
+          action: 'rename_task',
+          newTitle: renameMatch[2].trim(),
+          raw: cleaned,
+        };
+      }
+
+      // 8.2. Prefixo explícito de observação (ex: "Obs: comprar frutas", "Nota: ligar para fornecedor")
+      const obsMatch = cleaned.match(/^(obs|observa[cç][aã]o|nota|anota|anotar)\b[\s,.:;-]*(.+)$/i);
       if (obsMatch) {
         return {
           action: 'confirm_and_note',
@@ -979,12 +1043,27 @@
         };
       }
 
-      // 9. Qualquer outra mensagem ou frase livre enviada pelo usuário no WhatsApp:
-      // Confirma o recebimento (para parar o alarme) e salva o que ele escreveu como observação na atividade!
+      // 8.5. Qualquer frase livre sobre QUALQUER assunto que contenha um horário explícito ou expressão de tempo (ex: "ligar para miguel 14:30", "pagar boleto as 16h", "reunião amanhã às 10:00", "falar com contador daqui 20 min")
+      // é interpretada como criação de nova atividade/alerta!
+      const hasTimeExpression =
+        /\b(\d{1,2}[:h]\d{2})\b/i.test(cleaned) ||
+        /\b(?:para\s+as|para\s+às|às|as)\s*(\d{1,2})\s*(?:h|horas?)?\b/i.test(cleaned) ||
+        /\b(\d{1,2})\s*(?:h|horas)\b/i.test(cleaned) ||
+        /\bdaqui\s+a?\s*\d{1,3}\s*(?:min|minutos?|m|h|horas?)\b/i.test(cleaned);
+      if (hasTimeExpression && cleaned.length >= 3) {
+        return {
+          action: 'create_task',
+          commandText: cleaned,
+          raw: cleaned,
+        };
+      }
+
+      // 9. Qualquer outra mensagem ou frase livre enviada pelo usuário no WhatsApp sobre qualquer assunto:
       return {
         action: 'confirm_and_note',
         note: cleaned,
         raw: cleaned,
+        isFreeText: true,
       };
     }
 
@@ -1471,20 +1550,60 @@
         }
       }
 
-      // Detecção de horário (ex: "às 8h", "às 14:30", "16h", "07:00")
-      let startTime = '09:00';
-      const timeRegex = /(?:às|as|a|para as|de)?\s*(\d{1,2})\s*(?:h|:|horas?)?\s*(\d{2})?(?:\s*h|\s*horas?)?/i;
-      const explicitTimeMatch = text.match(/(?:às|as)\s*(\d{1,2})(?:[:h](\d{2}))?\s*(?:h|horas)?/i) ||
-                                text.match(/\b(\d{1,2})[:h](\d{2})?\b/i);
+      // Detecção de horário (ex: "às 15:00", "as 15:00", "lembrete as 15:00", "às 8h", "14:30", "16h", "daqui 5 min")
+      let startTime = null;
+      let hasExplicitTime = false;
 
-      if (explicitTimeMatch) {
-        let hour = parseInt(explicitTimeMatch[1], 10);
-        let minute = explicitTimeMatch[2] ? parseInt(explicitTimeMatch[2], 10) : 0;
+      const relativeMinsMatch = text.match(/\bdaqui\s+a?\s*(\d{1,3})\s*(?:min|minutos?|m)\b/i);
+      const explicitColonOrH =
+        text.match(/(?:para\s+as|para\s+às|às|as|a\s+partir\s+das|lembrete\s+(?:às|as)?|alerta\s+(?:às|as)?|hor[aá]rio\s*:?)\s*(\d{1,2})[:h](\d{2})\b/i) ||
+        text.match(/\b(\d{1,2})[:h](\d{2})\b/i);
+      const explicitHourOnly =
+        !explicitColonOrH &&
+        (text.match(/(?:para\s+as|para\s+às|às|as|lembrete\s+(?:às|as)|alerta\s+(?:às|as))\s*(\d{1,2})\s*(?:h|horas?)?\b/i) ||
+          text.match(/\b(\d{1,2})\s*(?:h|horas)\b/i));
+
+      if (relativeMinsMatch) {
+        const addM = Math.max(1, Math.min(720, parseInt(relativeMinsMatch[1], 10) || 5));
+        const target = new Date(Date.now() + addM * 60 * 1000);
+        startTime = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+        hasExplicitTime = true;
+      } else if (explicitColonOrH) {
+        let hour = parseInt(explicitColonOrH[1], 10);
+        let minute = explicitColonOrH[2] ? parseInt(explicitColonOrH[2], 10) : 0;
         if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
           if (lower.includes('da tarde') && hour < 12) hour += 12;
           if (lower.includes('da noite') && hour < 12) hour += 12;
           startTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+          hasExplicitTime = true;
         }
+      } else if (explicitHourOnly) {
+        let hour = parseInt(explicitHourOnly[1], 10);
+        if (hour >= 0 && hour <= 23) {
+          if (lower.includes('da tarde') && hour < 12) hour += 12;
+          if (lower.includes('da noite') && hour < 12) hour += 12;
+          startTime = `${String(hour).padStart(2, '0')}:00`;
+          hasExplicitTime = true;
+        }
+      }
+
+      if (!startTime) {
+        const soon = new Date(Date.now() + 5 * 60 * 1000);
+        startTime = `${String(soon.getHours()).padStart(2, '0')}:${String(soon.getMinutes()).padStart(2, '0')}`;
+      }
+
+      // Detecção de repetição de disparos no intervalo de X minutos (ex: "repetir 3x", "5 vezes em 5 min")
+      let repeatAlertCount = 3;
+      let repeatWindowMinutes = 5;
+      const repeatMatch = text.match(/\b(?:repeti(?:r|ndo|[cç][aã]o)?\s*)?(\d{1,2})\s*(?:x|vezes)\b/i);
+      if (repeatMatch) {
+        const parsedRep = parseInt(repeatMatch[1], 10);
+        if (parsedRep >= 1 && parsedRep <= 30) repeatAlertCount = parsedRep;
+      }
+      const windowMatch = text.match(/\b(?:em|a\s+cada|durante|intervalo\s+de)\s*(\d{1,2})\s*(?:min|minutos?)\b/i);
+      if (windowMatch) {
+        const parsedWin = parseInt(windowMatch[1], 10);
+        if (parsedWin >= 1 && parsedWin <= 60) repeatWindowMinutes = parsedWin;
       }
 
       const endTime = addMinutesToTime(startTime, 60);
@@ -1499,10 +1618,10 @@
       } else if (lower.includes('estud') || lower.includes('curso') || lower.includes('aula') || lower.includes('prova') || lower.includes('leitura')) {
         category = 'studies';
         priority = 'medium';
-      } else if (lower.includes('médico') || lower.includes('medico') || lower.includes('academia') || lower.includes('família') || lower.includes('pessoal') || lower.includes('comprar')) {
+      } else if (lower.includes('médico') || lower.includes('medico') || lower.includes('academia') || lower.includes('família') || lower.includes('pessoal') || lower.includes('comprar') || lower.includes('janta') || lower.includes('jnata') || lower.includes('almoço') || lower.includes('almoco')) {
         category = 'personal';
-        priority = 'medium';
-      } else if (lower.includes('urgente') || lower.includes('segurança') || lower.includes('emergência') || lower.includes('crítico') || lower.includes('prazo')) {
+        priority = 'high';
+      } else if (lower.includes('urgente') || lower.includes('segurança') || lower.includes('emergência') || lower.includes('crítico') || lower.includes('prazo') || lower.includes('alerta') || lower.includes('lembrete')) {
         category = 'urgent';
         priority = 'urgent';
       }
@@ -1513,16 +1632,85 @@
         priority = 'low';
       }
 
-      // Limpeza do título da tarefa
-      let cleanTitle = text
-        .replace(/^(me\s+lembre|lembrar(?:-me)?|agende|crie\s+uma\s+tarefa|adicione\s+na\s+agenda)\s*/i, '')
+      // Limpeza inteligente do título em português natural (ex: "faça agenda para pedir janta para pessoal lembrete as 15:00" -> "Pedir janta para pessoal")
+      let cleanTitle = text;
+      for (let i = 0; i < 4; i++) {
+        const before = cleanTitle;
+        cleanTitle = cleanTitle
+          .replace(
+            /^(?:por\s+favor|pfv|oi|ol[aá]|bom\s+dia|boa\s+tarde|boa\s+noite|ei|bot|sistema|max)[\s,.:;-]+/i,
+            ''
+          )
+          .replace(
+            /^(?:fa[cç]a|fazer|faz|coloca|colocar|coloque|bota|botar|bote|adiciona|adicionar|adicione|inclui|incluir|inclua|cria|criar|crie|agenda|agendar|agende|marca|marcar|marque|programa|programar|programe|cadastra|cadastrar|cadastre|quero|preciso|pode|poderia|favor|me\s+lembre|me\s+lembra|lembrar(?:-me)?|lembrete|me\s+avise|me\s+avisa|avisar|aviso|alerta|alertar|notificar|notifique|disparar|dispare)\b[\s,.:;-]*/i,
+            ''
+          )
+          .replace(
+            /^(?:uma?|o|a|um\s+novo|uma\s+nova|novo|nova|meu|minha)\s+(?:agenda|agendamento|tarefa|compromisso|atividade|alerta|lembrete|aviso|hor[aá]rio)\b[\s,.:;-]*/i,
+            ''
+          )
+          .replace(
+            /^(?:agenda|agendamento|tarefa|compromisso|atividade|alerta|lembrete|aviso)\b[\s,.:;-]*/i,
+            ''
+          )
+          .replace(
+            /^(?:na\s+minha\s+agenda|na\s+agenda|no\s+sistema|no\s+painel|no\s+whatsapp|no\s+whats|como\s+sms|aqui)\b[\s,.:;-]*/i,
+            ''
+          )
+          .replace(
+            /^(?:dizendo|falando|escrito|com\s+o\s+texto|para|pra|de|que|sobre|:|-)\b[\s,.:;-]*/i,
+            ''
+          )
+          .trim();
+        if (cleanTitle === before) break;
+      }
+
+      cleanTitle = cleanTitle
+        .replace(
+          /\b(?:e\s+|com\s+)?(?:repeti(?:r|ndo|[cç][aã]o)?|disparar|enviar|mandar)?\s*\d{1,2}\s*(?:x|vezes)\b(?:\s*(?:em|a\s+cada|durante|no\s+intervalo\s+de)\s*\d{1,2}\s*(?:min|minutos?))?/gi,
+          ''
+        )
+        .replace(
+          /\b(?:em|a\s+cada|durante|intervalo\s+de)\s*\d{1,2}\s*(?:min|minutos?)\b/gi,
+          ''
+        )
+        .replace(
+          /\bdaqui\s+a?\s*\d{1,3}\s*(?:min|minutos?|m)\b/gi,
+          ''
+        )
+        .replace(
+          /\b(?:com\s+|e\s+|para\s+|pra\s+)?(?:lembrete|alerta|aviso|notifica[cç][aã]o|alarme|hor[aá]rio)\s*(?:para\s+as|para\s+às|às|as|a|de|em|:)?\s*\d{1,2}(?:[:h]\d{2})?\s*(?:h|horas?|min|minutos?)?(?:\s*da\s+(?:manh[aã]|tarde|noite))?\b/gi,
+          ''
+        )
+        .replace(
+          /\b(?:para\s+as|para\s+às|às|as|a\s+partir\s+das)\s*\d{1,2}(?:[:h]\d{2})?\s*(?:h|horas?)?(?:\s*da\s+(?:manh[aã]|tarde|noite))?\b/gi,
+          ''
+        )
+        .replace(
+          /\b\d{1,2}[:h]\d{2}\s*(?:h|horas?)?(?:\s*da\s+(?:manh[aã]|tarde|noite))?\b/gi,
+          ''
+        )
+        .replace(
+          /\b\d{1,2}\s*(?:h|horas)\b(?:\s*da\s+(?:manh[aã]|tarde|noite))?/gi,
+          ''
+        )
         .replace(/\b(hoje|amanhã|amanha|depois de amanhã|todas as\s+[\w-]+|toda\s+[\w-]+|na\s+[\w-]+|no\s+domingo|no\s+sábado)\b/gi, '')
-        .replace(/(?:às|as)\s*\d{1,2}(?:[:h]\d{2})?\s*(?:h|horas?)?/gi, '')
-        .replace(/^\s*(de|para|que|em|,|-)\s+/i, '')
+        .replace(/\b(?:com\s+)?(?:lembrete|alerta|aviso|na\s+agenda|por\s+favor|pfv|obrigad[oa])\s*$/gi, '')
+        .replace(/^[\s,.:;-]+|[\s,.:;-]+$/g, '')
         .replace(/\s{2,}/g, ' ')
         .trim();
 
-      if (!cleanTitle || cleanTitle.length < 3) {
+      // Correção automática de erros de digitação comuns no WhatsApp (ex: "jnata" -> "janta")
+      cleanTitle = cleanTitle
+        .replace(/\bjnata\b/gi, 'janta')
+        .replace(/\bjanat\b/gi, 'janta')
+        .replace(/\balmoco\b/gi, 'almoço')
+        .replace(/\breuniao\b/gi, 'reunião')
+        .replace(/\bmedico\b/gi, 'médico')
+        .replace(/\bremedio\b/gi, 'remédio')
+        .replace(/\baniversario\b/gi, 'aniversário');
+
+      if (!cleanTitle || cleanTitle.length < 2) {
         cleanTitle = text;
       } else {
         cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
@@ -1536,13 +1724,18 @@
         dateExplanation,
         startTime,
         endTime,
+        hasExplicitTime,
+        repeatAlertCount,
+        repeatWindowMinutes,
         category,
         priority,
         recurrence,
+        notifyWhatsApp: true,
         notifyTelegram: true,
+        notifySms: true,
         notifyVoiceCall: true,
         requireConfirmation: true,
-        leadTimeMinutes: 30,
+        leadTimeMinutes: 5,
       };
     }
 
@@ -5431,6 +5624,53 @@
                 parsed.settings.greenApiToken = 'bc3f8075a090411296a983a516a499d80a6ec55c88f648c2bf';
               }
               parsed.categories = DEFAULT_CATEGORIES;
+
+              // Reparo automático universal: se alguma observação antiga salva em qualquer tarefa era na verdade um comando de criação de tarefa (sobre qualquer assunto), converte automaticamente em atividade na agenda!
+              const recoveredTasks = [];
+              parsed.tasks = parsed.tasks.map(t => {
+                if (!Array.isArray(t.observations)) return t;
+                const filteredObs = t.observations.filter(obs => {
+                  const cleanObsText = String(obs || '').replace(/^\[[^\]]+\]\s*/, '').trim();
+                  if (/^📲|^🏆|^📌/.test(cleanObsText)) return true;
+                  const reparsed = parseUserWhatsAppReply(cleanObsText);
+                  if (reparsed && reparsed.action === 'create_task') {
+                    const spec = parseNaturalLanguageTask(cleanObsText);
+                    if (spec && spec.title) {
+                      recoveredTasks.push({
+                        ...spec,
+                        id: 'tf-wa-rec-' + Date.now() + '-' + recoveredTasks.length,
+                        status: 'pending',
+                        attachments: [],
+                        observations: [`[Recuperado] 📲 Criada pelo WhatsApp: "${cleanObsText}"`],
+                        lastWhatsAppReply: cleanObsText,
+                        isFavorite: true,
+                        estimatedMinutes: 60,
+                      });
+                      return false;
+                    }
+                  }
+                  if (/^jnata\s+para\s+pessoal$/i.test(cleanObsText)) {
+                    return false;
+                  }
+                  return true;
+                });
+                return filteredObs.length !== t.observations.length
+                  ? { ...t, observations: filteredObs }
+                  : t;
+              });
+
+              for (const recTask of recoveredTasks) {
+                const alreadyExists = parsed.tasks.some(
+                  existing =>
+                    existing.date === recTask.date &&
+                    existing.startTime === recTask.startTime &&
+                    existing.title?.toLowerCase() === recTask.title?.toLowerCase()
+                );
+                if (!alreadyExists) {
+                  parsed.tasks.unshift(recTask);
+                }
+              }
+
               return parsed;
             }
           }
@@ -6274,7 +6514,9 @@
         [state.tasks, state.settings, showToast]
       );
 
-      // Cria tarefa automaticamente a partir de uma mensagem enviada pelo usuário no WhatsApp (ex: "Agendar vistoria às 14:30")
+      // Cria tarefa automaticamente a partir de uma mensagem enviada pelo usuário no WhatsApp (ex: "faça agenda para pedir janta para pessoal lembrete as 15:00", "Agendar vistoria às 14:30")
+      const lastCreatedWaTaskRef = useRef(null);
+
       const handleCreateTaskFromWhatsApp = useCallback(
         (commandText, rawReplyText) => {
           const parsedSpec = parseNaturalLanguageTask(commandText);
@@ -6298,8 +6540,21 @@
             observations: [`[${nowStr}] 📲 Criada por comando no WhatsApp: "${rawReplyText}"`],
             lastWhatsAppReply: rawReplyText,
             isFavorite: true,
+            repeatAlertCount: parsedSpec.repeatAlertCount || 3,
+            repeatWindowMinutes: parsedSpec.repeatWindowMinutes || 5,
+            sentRepeatShots: 0,
+            activeRepeatRunning: false,
+            repeatStopped: false,
             estimatedMinutes: 60,
           }));
+
+          lastCreatedWaTaskRef.current = {
+            id: createdTasks[0].id,
+            title: parsedSpec.title,
+            startTime: parsedSpec.startTime,
+            date: parsedSpec.date,
+            timestamp: Date.now(),
+          };
 
           setState(prev => ({
             ...prev,
@@ -6330,12 +6585,12 @@
             text:
               `📅 *MEU CONTROLE MAX – ATIVIDADE CRIADA PELO WHATSAPP!* ✅\n\n` +
               `📌 *Atividade:* ${parsedSpec.title}\n` +
-              `📆 *Data Inicial:* ${formatDateBR(parsedSpec.date)}\n` +
+              `📆 *Data:* ${formatDateBR(parsedSpec.date)}\n` +
               `⏰ *Horário:* ${parsedSpec.startTime} - ${parsedSpec.endTime}\n` +
               (datesToCreate.length > 1
                 ? `🔁 *Repetição Criada:* ${datesToCreate.length} ocorrências geradas na Agenda!\n`
-                : '') +
-              `🔔 *Automação:* Você será avisado faltando 5m, 3m, 2m, 1m e pós-início!`,
+                : `🔁 *Disparos Programados:* ${parsedSpec.repeatAlertCount || 3}x no intervalo de ${parsedSpec.repeatWindowMinutes || 5} min\n`) +
+              `🔔 *Automação:* Você será avisado faltando 5m, 3m, 2m, 1m e na hora programada!`,
           }).catch(() => {});
         },
         [state.settings, showToast]
@@ -6537,6 +6792,36 @@
           const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
           // 1. Comandos globais que funcionam mesmo se a agenda estiver vazia:
+          if (parsed.action === 'help') {
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: '📖 Enviou Guia de Comandos no WhatsApp',
+              taskTitle: 'Assistente Meu Controle Max',
+              time: nowStr,
+            });
+            sendGreenApiWhatsAppMessage({
+              settings: state.settings,
+              text:
+                `🤖 *MEU CONTROLE MAX – COMO CONVERSAR COMIGO NO WHATSAPP*\n\n` +
+                `Você pode escrever naturalmente sobre *qualquer assunto*:\n\n` +
+                `➕ *Criar Tarefa ou Alerta:*\n` +
+                `• _"Ligar para Miguel às 14:30"_\n` +
+                `• _"Faça agenda para pagar boleto às 16:00"_\n` +
+                `• _"Alerta cobrar cliente 15:00 repetir 5x"_\n\n` +
+                `✅ *Confirmar ou Concluir Alerta:*\n` +
+                `• _"OK"_, _"Ciente"_, _"1"_ (confirma e para o alarme)\n` +
+                `• _"Feito"_, _"Concluído"_, _"Já liguei"_, _"Já paguei"_, _"2"_\n\n` +
+                `🕒 *Mudar Horário ou Adiar:*\n` +
+                `• _"Mudar horário para 17:00"_\n` +
+                `• _"Adiar 15"_ ou _"Me lembra daqui 20 min"_\n` +
+                `• _"Não deu tempo"_ / _"Deixa pra amanhã"_ (move p/ o topo de amanhã)\n\n` +
+                `📋 *Consultar Agenda ou Anotar:*\n` +
+                `• _"Agenda"_ ou _"O que tenho hoje"_\n` +
+                `• _"Obs: levar contrato assinado"_`,
+            }).catch(() => {});
+            return true;
+          }
+
           if (parsed.action === 'daily_summary') {
             setLastWhatsAppMonitorEvent({
               text: parsed.raw,
@@ -6559,7 +6844,65 @@
             return true;
           }
 
-          // Se não houver nenhuma tarefa na agenda quando o usuário escrever algo no WhatsApp, avisa que leu e responde no WhatsApp!
+          // Se o usuário enviou uma frase livre (sem prefixo "Obs:", "OK", "Feito") e NÃO há nenhum alerta tocando no momento:
+          // 1) Se ele acabou de criar uma tarefa pelo WhatsApp há menos de 5 min (ex: enviou "jnata para pessoal" logo após criar a tarefa das 15:00), atualiza o título dessa tarefa!
+          // 2) Caso contrário, cria uma nova tarefa/alerta na agenda em vez de jogar o texto como observação numa tarefa antiga já encerrada!
+          const activeRingingTask =
+            activeTelegramPopup?.task ||
+            activePhoneCall?.task ||
+            (state.tasks || []).find(
+              t => t.date === todayISO && (t.status === 'notified' || t.activeRepeatRunning)
+            );
+
+          if (parsed.action === 'confirm_and_note' && parsed.isFreeText && !activeRingingTask) {
+            const recentCreated = lastCreatedWaTaskRef.current;
+            if (recentCreated && Date.now() - recentCreated.timestamp <= 5 * 60 * 1000) {
+              const cleanedSpec = parseNaturalLanguageTask(parsed.raw);
+              const updatedTitle = cleanedSpec?.title || parsed.raw;
+              setState(prev => ({
+                ...prev,
+                tasks: prev.tasks.map(t =>
+                  t.id === recentCreated.id
+                    ? {
+                        ...t,
+                        title: updatedTitle,
+                        lastWhatsAppReply: parsed.raw,
+                      }
+                    : t
+                ),
+              }));
+              lastCreatedWaTaskRef.current = { ...recentCreated, title: updatedTitle, timestamp: Date.now() };
+              setLastWhatsAppMonitorEvent({
+                text: parsed.raw,
+                actionLabel: `✏️ Título da atividade atualizado para "${updatedTitle}"`,
+                taskTitle: `${updatedTitle} (${recentCreated.startTime})`,
+                time: nowStr,
+              });
+              showToast(`✏️ Atividade atualizada pelo WhatsApp: "${updatedTitle}" às ${recentCreated.startTime}!`, 'success');
+              sendGreenApiWhatsAppMessage({
+                settings: state.settings,
+                text:
+                  `✏️ *MEU CONTROLE MAX – ATIVIDADE ATUALIZADA NA AGENDA!* ✅\n\n` +
+                  `📌 *Atividade:* ${updatedTitle}\n` +
+                  `📆 *Data:* ${formatDateBR(recentCreated.date || todayISO)}\n` +
+                  `⏰ *Horário:* ${recentCreated.startTime}\n` +
+                  `🔔 *Status:* Agendada e pronta para disparar no horário!`,
+              }).catch(() => {});
+              return true;
+            }
+
+            // Se não havia tarefa recém-criada nem alerta tocando, cria uma nova atividade/alerta a partir da frase enviada!
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: '➕ Criou Nova Atividade pelo WhatsApp',
+              taskTitle: parsed.raw,
+              time: nowStr,
+            });
+            handleCreateTaskFromWhatsApp(parsed.raw, parsed.raw);
+            return true;
+          }
+
+          // Se não houver nenhuma tarefa na agenda quando o usuário escrever algo no WhatsApp, cria ou avisa!
           if (!state.tasks || state.tasks.length === 0) {
             setLastWhatsAppMonitorEvent({
               text: parsed.raw,
@@ -6581,14 +6924,15 @@
           }
 
           // 2. Identifica a tarefa alvo de forma inteligente:
-          // Primeiro verifica se o texto do usuário menciona alguma palavra do título de uma tarefa específica:
+          // Primeiro verifica se o texto do usuário menciona alguma palavra específica do título de uma tarefa (ignorando palavras genéricas como "pedir", "pessoal", "fazer"):
           const lowerRaw = parsed.raw.toLowerCase();
+          const stopWords = new Set(['para', 'como', 'pelo', 'pela', 'fazer', 'pedir', 'pessoal', 'ligar', 'agenda', 'lembrete', 'alerta', 'hoje', 'amanha', 'amanhã']);
           const matchedByKeyword = state.tasks.find(t => {
             if (!t.title) return false;
             const words = t.title
               .toLowerCase()
               .split(/\s+/)
-              .filter(w => w.length >= 4 && !['para', 'como', 'pelo', 'pela', 'fazer'].includes(w));
+              .filter(w => w.length >= 4 && !stopWords.has(w));
             return words.some(w => lowerRaw.includes(w));
           });
 
@@ -6609,7 +6953,71 @@
 
           if (!targetTask) return false;
 
-          if (parsed.action === 'not_completed_rollover') {
+          if (parsed.action === 'reschedule_time') {
+            const newStart = parsed.newTime;
+            const newEnd = addMinutesToTime(newStart, 60);
+            Object.keys(autoTriggeredStagesRef.current).forEach(k => {
+              if (k.startsWith(`${targetTask.id}_`)) {
+                delete autoTriggeredStagesRef.current[k];
+              }
+            });
+            setState(prev => ({
+              ...prev,
+              tasks: prev.tasks.map(t =>
+                t.id === targetTask.id
+                  ? {
+                      ...t,
+                      startTime: newStart,
+                      endTime: newEnd,
+                      status: 'pending',
+                      repeatStopped: false,
+                      sentRepeatShots: 0,
+                      lastWhatsAppReply: parsed.raw,
+                    }
+                  : t
+              ),
+            }));
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: `🕒 Horário alterado para ${newStart}`,
+              taskTitle: targetTask.title,
+              time: nowStr,
+            });
+            showToast(`🕒 Horário de "${targetTask.title}" alterado para ${newStart} via WhatsApp!`, 'success');
+            sendGreenApiWhatsAppMessage({
+              settings: state.settings,
+              text:
+                `🕒 *MEU CONTROLE MAX – HORÁRIO ATUALIZADO!* ✅\n\n` +
+                `📌 *Atividade:* ${targetTask.title}\n` +
+                `⏰ *Novo Horário:* ${newStart}\n` +
+                `🔔 *Status:* Você será avisado novamente no novo horário!`,
+            }).catch(() => {});
+          } else if (parsed.action === 'rename_task') {
+            const cleanedSpec = parseNaturalLanguageTask(parsed.newTitle);
+            const newTitle = cleanedSpec?.title || parsed.newTitle;
+            setState(prev => ({
+              ...prev,
+              tasks: prev.tasks.map(t =>
+                t.id === targetTask.id
+                  ? { ...t, title: newTitle, lastWhatsAppReply: parsed.raw }
+                  : t
+              ),
+            }));
+            setLastWhatsAppMonitorEvent({
+              text: parsed.raw,
+              actionLabel: `✏️ Renomeada para "${newTitle}"`,
+              taskTitle: newTitle,
+              time: nowStr,
+            });
+            showToast(`✏️ Atividade renomeada para "${newTitle}" via WhatsApp!`, 'success');
+            sendGreenApiWhatsAppMessage({
+              settings: state.settings,
+              text:
+                `✏️ *MEU CONTROLE MAX – ATIVIDADE ATUALIZADA!* ✅\n\n` +
+                `📌 *Novo Nome:* ${newTitle}\n` +
+                `⏰ *Horário:* ${targetTask.startTime}`,
+            }).catch(() => {});
+          } else if (parsed.action === 'not_completed_rollover') {
             setLastWhatsAppMonitorEvent({
               text: parsed.raw,
               actionLabel: '📌 Não concluída ➔ Movida p/ TOPO de Amanhã',
